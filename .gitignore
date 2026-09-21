@@ -1,0 +1,29 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables (for future backend)
+.env
+.env.local
+.env.*.local
+
+# Build outputs (for future backend)
+target/
+build/
+dist/
+bin/
+obj/
+
+# Dependencies (for future backend)
+node_modules/
+vendor/
