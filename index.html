@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Google Fonts Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -49,8 +51,8 @@
       100% { height: 28px; }
     }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 
     /* A4 Printing Styles */
     @page {
@@ -88,7 +90,6 @@
 
       /* Dotted border separation between vocabulary rows */
       .print-row {
-        border-bottom: 1px dotted #888888 !important;
         break-inside: avoid;
       }
 
@@ -100,60 +101,214 @@
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-brand-400 selection:text-slate-950">
+
+  <!-- Authentication Screen -->
+  <div id="auth-screen" class="hidden min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div class="bg-slate-900 rounded-lg shadow-xl p-8 w-full max-w-md border border-slate-700">
+      <h1 class="text-3xl font-bold text-slate-100 mb-6 text-center">VocabMaster</h1>
+
+      <!-- Login Form -->
+      <div id="login-form">
+        <h2 class="text-xl text-slate-200 mb-4">Login</h2>
+        <input type="email" id="login-email" placeholder="Email"
+          class="w-full px-4 py-2 mb-3 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-brand-500">
+        <input type="password" id="login-password" placeholder="Password"
+          class="w-full px-4 py-2 mb-4 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-brand-500">
+        <button onclick="handleLogin()" class="w-full bg-brand-500 text-white py-2 rounded hover:bg-brand-600 font-medium">
+          Login
+        </button>
+        <p class="text-slate-400 text-sm mt-4 text-center">
+          Don't have an account?
+          <a href="#" onclick="showSignup(); return false;" class="text-brand-400 hover:underline">Sign up</a>
+        </p>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signup-form" class="hidden">
+        <h2 class="text-xl text-slate-200 mb-4">Create Account</h2>
+        <input type="text" id="signup-name" placeholder="Your Name"
+          class="w-full px-4 py-2 mb-3 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-brand-500">
+        <input type="email" id="signup-email" placeholder="Email"
+          class="w-full px-4 py-2 mb-3 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-brand-500">
+        <input type="password" id="signup-password" placeholder="Password (min 6 characters)"
+          class="w-full px-4 py-2 mb-4 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:border-brand-500">
+        <button onclick="handleSignup()" class="w-full bg-brand-500 text-white py-2 rounded hover:bg-brand-600 font-medium">
+          Sign Up
+        </button>
+        <p class="text-slate-400 text-sm mt-4 text-center">
+          Already have an account?
+          <a href="#" onclick="showLogin(); return false;" class="text-brand-400 hover:underline">Login</a>
+        </p>
+      </div>
+
+      <div id="auth-error" class="mt-4 p-3 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm hidden"></div>
+    </div>
+  </div>
+
+  <!-- Main App (hidden until logged in) -->
+  <div id="main-app" class="hidden flex flex-col flex-1">
 
   <!-- Top Navigation Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+  <header class="bg-slate-900 border-b border-slate-700 sticky top-0 z-30 shadow-lg">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between h-16 items-center">
+      <div class="flex justify-between h-14 items-center gap-3 border-b border-slate-800">
         <div class="flex items-center space-x-3">
-          <div class="bg-gradient-to-tr from-brand-600 to-indigo-600 text-white p-2.5 rounded-xl shadow-md">
-            <i class="fa-solid font-bold fa-language text-xl"></i>
+          <!-- Burger Menu Button -->
+          <button onclick="toggleListManager()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+            <i class="fa-solid fa-bars text-slate-200 text-xl"></i>
+          </button>
+        </div>
+
+        <!-- Contextual Action Buttons (changes per tab) -->
+        <div class="flex-1 flex justify-center">
+          <!-- Edit Tab Actions -->
+          <div id="actions-manage" class="contextual-actions flex gap-2">
+            <button onclick="toggleShowAllEnglish()" id="show-hide-btn" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-600">
+              <i class="fa-solid fa-eye-slash"></i>
+              <span class="hidden sm:inline">Hide English</span>
+              <span class="sm:hidden">Hide</span>
+            </button>
+            <button onclick="toggleEditMode()" id="edit-mode-btn" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600">
+              <i class="fa-solid fa-pencil"></i>
+              <span class="hidden sm:inline">Edit</span>
+              <span class="sm:hidden">Edit</span>
+            </button>
+            <button onclick="verifyAllTranslations()" id="verify-translations-btn" class="edit-mode-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-amber-600 hover:bg-amber-700 text-white border border-amber-600">
+              <i class="fa-solid fa-language"></i>
+              <span class="hidden sm:inline">Verify Translations</span>
+              <span class="sm:hidden">Verify</span>
+            </button>
+            <button onclick="generateContextSentences()" id="generate-sentences-btn" class="edit-mode-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-purple-600 hover:bg-purple-700 text-white border border-purple-600">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span class="hidden sm:inline">Generate Sentences</span>
+              <span class="sm:hidden">Gen</span>
+            </button>
+            <button onclick="addNewWordRow()" id="add-word-btn" class="edit-mode-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-brand-600 hover:bg-brand-700 text-white border border-brand-600">
+              <i class="fa-solid fa-plus"></i>
+              <span class="hidden sm:inline">Add Word</span>
+              <span class="sm:hidden">Add</span>
+            </button>
           </div>
-          <div>
-            <span class="text-xl font-bold bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">VocabMaster</span>
+
+          <!-- Print Tab Actions -->
+          <div id="actions-printable" class="contextual-actions hidden flex gap-2">
+            <button onclick="window.print()" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-brand-600 hover:bg-brand-700 text-white">
+              <i class="fa-solid fa-print"></i>
+              <span>Print</span>
+            </button>
+          </div>
+
+          <!-- Listen Tab Actions -->
+          <div id="actions-listening" class="contextual-actions hidden flex gap-2">
+            <!-- Edit/Save Button -->
+            <button onclick="toggleListeningMode()" id="listening-mode-btn" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600">
+              <i class="fa-solid fa-pencil"></i>
+              <span class="hidden sm:inline">Edit</span>
+              <span class="sm:hidden">Edit</span>
+            </button>
+
+            <!-- Edit Mode Only Buttons -->
+            <select id="difficulty-select" onchange="changeDifficulty()" class="listening-edit-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600">
+              <option value="A1">A1 - Beginner</option>
+              <option value="A2" selected>A2 - Elementary</option>
+              <option value="B1">B1 - Intermediate</option>
+              <option value="B2">B2 - Upper Int.</option>
+              <option value="C1">C1 - Advanced</option>
+              <option value="C2">C2 - Proficient</option>
+            </select>
+            <button onclick="generateListeningText()" class="listening-edit-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-purple-600 hover:bg-purple-700 text-white">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span class="hidden sm:inline">Generate Text</span>
+              <span class="sm:hidden">Generate</span>
+            </button>
+
+            <!-- Listening Mode Only Buttons -->
+            <select id="speed-select" onchange="changeSpeed()" class="listening-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600">
+              <option value="0.5">50%</option>
+              <option value="0.75">75%</option>
+              <option value="1.0" selected>100%</option>
+            </select>
           </div>
         </div>
 
-        <!-- Web Speech Support Badge -->
-        <div id="speech-support-badge" class="hidden sm:flex items-center space-x-2 text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span id="speech-support-text">Web Speech API Supported</span>
+        <!-- Tab Navigation Buttons -->
+        <div class="flex gap-2 items-center">
+          <button onclick="switchTab('manage-tab')" id="nav-edit" class="tab-nav-btn active-tab-nav px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-brand-500 text-white">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Words</span>
+          </button>
+
+          <button onclick="switchTab('printable-tab')" id="nav-print" class="tab-nav-btn px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-slate-800 hover:bg-slate-700 text-slate-200">
+            <i class="fa-solid fa-print"></i>
+            <span>Print</span>
+          </button>
+
+          <button onclick="switchTab('listening-tab')" id="nav-listen" class="tab-nav-btn px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-slate-800 hover:bg-slate-700 text-slate-200">
+            <i class="fa-solid fa-headphones"></i>
+            <span>Listen</span>
+          </button>
+
+          <!-- Logout Button -->
+          <button onclick="handleLogout()" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span class="hidden sm:inline">Logout</span>
+          </button>
         </div>
+      </div>
+
+      <!-- Dynamic Tab Description -->
+      <div class="py-2">
+        <p id="tab-description" class="text-xs sm:text-sm text-slate-400 text-center">
+          Manage your vocabulary lists, edit words, and practice pronunciation
+        </p>
       </div>
     </div>
   </header>
 
-  <!-- Navigation Tabs -->
-  <nav class="bg-white border-b border-slate-200 sticky top-16 z-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-around sm:justify-start space-x-2 sm:space-x-8 overflow-x-auto py-2">
-        <button onclick="switchTab('manage-tab')" id="nav-manage-tab" class="tab-btn active-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-brand-600 bg-brand-50 border border-brand-200 shadow-sm">
-          <i class="fa-solid fa-list-check"></i>
-          <span>1. Manage Lists & Words</span>
-        </button>
+  <!-- Sidebar Overlay (Dark Background) -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden transition-opacity" onclick="toggleListManager()"></div>
 
-        <button onclick="switchTab('printable-tab')" id="nav-printable-tab" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 group relative">
-          <i class="fa-solid fa-print"></i>
-          <span>2. A4 Printable Worksheet</span>
-          <i class="fa-solid fa-circle-info text-xs text-slate-400 group-hover:text-brand-500 transition-colors" title="Perfect for offline practice in the kitchen, restaurant, or anywhere! Print and practice without a screen."></i>
-          <span class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50">
-            💡 Perfect for offline practice in the kitchen, restaurant, or anywhere!<br/>Print and practice without a screen.
-          </span>
-        </button>
-
-        <button onclick="switchTab('listening-tab')" id="nav-listening-tab" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100">
-          <i class="fa-solid fa-headphones"></i>
-          <span>3. Listening & Sentences</span>
-        </button>
-
-        <button onclick="switchTab('arch-tab')" id="nav-arch-tab" class="tab-btn flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100">
-          <i class="fa-solid fa-layer-group"></i>
-          <span>Architecture Guide</span>
+  <!-- Sliding Sidebar Menu -->
+  <div id="list-manager-sidebar" class="fixed top-0 left-0 h-full w-80 bg-slate-900 shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto border-r border-slate-700">
+    <div class="p-6 space-y-6">
+      <!-- Sidebar Header -->
+      <div class="flex justify-between items-center border-b border-slate-700 pb-4">
+        <h2 class="text-lg font-bold text-slate-100">List Manager</h2>
+        <button onclick="toggleListManager()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+          <i class="fa-solid fa-xmark text-slate-300 text-xl"></i>
         </button>
       </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col gap-2">
+        <button onclick="createNewList()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
+          <i class="fa-solid fa-plus"></i>
+          <span>New List</span>
+        </button>
+
+        <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
+          <i class="fa-solid fa-file-import"></i>
+          <span>Import CSV/JSON</span>
+          <input type="file" accept=".csv,.json,.txt" class="hidden" onchange="handleFileUpload(event)">
+        </label>
+
+        <button onclick="exportCurrentList()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
+          <i class="fa-solid fa-file-export"></i>
+          <span>Export</span>
+        </button>
+      </div>
+
+      <!-- List Selector -->
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Your Lists (<span id="list-count">3</span>)</h3>
+        <div class="flex flex-col space-y-2" id="list-tabs-container">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
     </div>
-  </nav>
+  </div>
+
 
   <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
@@ -162,148 +317,39 @@
     <!-- ========================================================================= -->
     <section id="manage-tab" class="tab-content block space-y-6">
 
-      <!-- Multi-List Bar -->
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 class="text-lg font-bold text-slate-900">Vocabulary List Manager</h2>
-            <p class="text-sm text-slate-500">Create, switch, edit English/French vocabulary, add context sentences, and test speech.</p>
-          </div>
-
-          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button onclick="createNewList()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-xs px-3.5 py-2 rounded-xl flex items-center space-x-1.5 shadow-sm transition-all">
-              <i class="fa-solid fa-plus"></i>
-              <span>New List</span>
-            </button>
-
-            <!-- Import / Export -->
-            <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs px-3.5 py-2 rounded-xl flex items-center space-x-1.5 border border-slate-300 transition-all">
-              <i class="fa-solid fa-file-import"></i>
-              <span>Import CSV/JSON</span>
-              <input type="file" accept=".csv,.json,.txt" class="hidden" onchange="handleFileUpload(event)">
-            </label>
-
-            <button onclick="exportCurrentList()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs px-3.5 py-2 rounded-xl flex items-center space-x-1.5 border border-slate-300 transition-all">
-              <i class="fa-solid fa-file-export"></i>
-              <span>Export</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- List Selector Tabs -->
-        <div class="flex items-center space-x-2 overflow-x-auto pb-1 pt-2 border-t border-slate-100" id="list-tabs-container">
-          <!-- Rendered dynamically -->
-        </div>
-      </div>
-
-      <!-- Word Table Editor & Pronunciation Studio -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Word Management Table (Lg: 7 Cols) -->
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[520px]">
-          <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Active List Words (<span id="word-count">0</span>)</span>
-            </div>
-            <button onclick="addNewWordRow()" class="text-xs bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1 transition-colors">
-              <i class="fa-solid fa-plus"></i>
-              <span>Add Word</span>
-            </button>
-          </div>
-
-          <!-- Vocabulary Table -->
-          <div class="overflow-y-auto flex-grow max-h-[580px] custom-scrollbar">
-            <table class="w-full text-left border-collapse">
-              <thead class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
-                <tr>
-                  <th class="py-3 px-3 w-10 text-center">Audio</th>
-                  <th class="py-3 px-3">English Word</th>
-                  <th class="py-3 px-3">French Translation</th>
-                  <th class="py-3 px-3">Context Sentence</th>
-                  <th class="py-3 px-3 text-center">Del</th>
-                </tr>
-              </thead>
-              <tbody id="vocab-table-body" class="divide-y divide-slate-100 text-xs">
-                <!-- Injected dynamically -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Quick Pronunciation Evaluation Studio (Lg: 5 Cols) -->
-        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-6 flex flex-col justify-between space-y-3 sm:space-y-6">
-          <div>
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3 sm:pb-3 sm:mb-4">
-              <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md">Pronunciation Studio</span>
-              <span id="voice-accent-label" class="text-[10px] sm:text-xs text-slate-400 hidden sm:inline">Voice: en-US</span>
-            </div>
-
-            <!-- Active Selected Target Word Spotlight -->
-            <div id="active-word-card" class="text-center p-3 sm:p-6 bg-gradient-to-b from-slate-50 to-brand-50/30 rounded-xl sm:rounded-2xl border border-slate-200/80 space-y-2 sm:space-y-3 relative overflow-hidden">
-              <span class="text-[10px] sm:text-xs text-slate-400 font-medium">Selected Word for Practice</span>
-              <h3 id="current-target-word" class="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">boarding pass</h3>
-              <p id="current-target-fr" class="text-xs sm:text-sm text-slate-500 italic">carte d'embarquement</p>
-              <p id="current-target-sentence" class="text-[10px] sm:text-xs text-brand-700 italic font-medium bg-brand-50 p-1.5 sm:p-2 rounded-lg border border-brand-100">
-                "Please present your boarding pass at gate 4."
-              </p>
-
-              <!-- Pronounce Target Word Button -->
-              <div class="pt-1 sm:pt-2 flex justify-center space-x-2">
-                <button onclick="playTargetWordAudio()" class="inline-flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg sm:rounded-xl font-medium text-[10px] sm:text-xs transition-all shadow-xs">
-                  <i class="fa-solid fa-volume-high text-xs sm:text-sm"></i>
-                  <span>Listen</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Speech Recording Microphone -->
-            <div class="mt-3 sm:mt-6 text-center space-y-2 sm:space-y-4">
-              <p class="text-[10px] sm:text-xs text-slate-500">Tap microphone, speak clearly, then evaluate:</p>
-
-              <div class="flex justify-center items-center">
-                <button id="mic-btn" onclick="toggleSpeechRecording()" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all transform active:scale-95 focus:outline-none">
-                  <i id="mic-icon" class="fa-solid fa-microphone text-xl sm:text-2xl"></i>
-                </button>
-              </div>
-
-              <!-- Animated Waveform -->
-              <div id="waveform-container" class="hidden flex justify-center items-center space-x-1 sm:space-x-1.5 h-6 sm:h-8">
-                <div class="w-1 sm:w-1.5 bg-red-500 rounded-full wave-bar" style="animation-delay: 0.1s"></div>
-                <div class="w-1 sm:w-1.5 bg-red-500 rounded-full wave-bar" style="animation-delay: 0.3s"></div>
-                <div class="w-1 sm:w-1.5 bg-red-500 rounded-full wave-bar" style="animation-delay: 0.2s"></div>
-                <div class="w-1 sm:w-1.5 bg-red-500 rounded-full wave-bar" style="animation-delay: 0.4s"></div>
-                <div class="w-1 sm:w-1.5 bg-red-500 rounded-full wave-bar" style="animation-delay: 0.1s"></div>
-              </div>
-
-              <div id="recording-status" class="text-[10px] sm:text-xs font-semibold text-slate-400 h-4 sm:h-5">Tap mic to record</div>
-            </div>
-
-            <!-- Speech Analysis Result Box -->
-            <div id="result-box" class="mt-3 sm:mt-6 p-2 sm:p-4 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-200 text-left space-y-1.5 sm:space-y-2">
-              <div class="flex justify-between items-center">
-                <span class="text-[10px] sm:text-xs font-semibold text-slate-500">Result</span>
-                <span id="score-badge" class="hidden px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">100% Match</span>
-              </div>
-
-              <div class="text-xs sm:text-sm font-medium text-slate-800 bg-white p-2 sm:p-3 rounded-lg border border-slate-200 min-h-[36px] sm:min-h-[42px] flex items-center" id="user-spoken-text">
-                <span class="text-slate-400 italic text-[10px] sm:text-xs">Your transcript appears here...</span>
-              </div>
-
-              <div id="feedback-detail" class="text-[10px] sm:text-xs text-slate-500 hidden pt-1">
-                <i class="fa-solid fa-circle-info mr-1"></i> <span id="feedback-message">Phonetic accuracy matches modern standard pronunciation.</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Voice Selector -->
-          <div class="border-t border-slate-100 pt-2 sm:pt-3">
-            <label class="text-[10px] sm:text-xs text-slate-500 font-medium block mb-1">Voice:</label>
-            <select id="tts-voice-select" onchange="updateSelectedVoice()" class="w-full text-[10px] sm:text-xs bg-slate-50 border border-slate-200 rounded-lg p-1.5 sm:p-2 text-slate-700">
+      <!-- Word Management Table (Full Width) -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col">
+        <div class="p-3 border-b border-slate-700 bg-slate-800/70 flex justify-between items-center">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Active List Words (<span id="word-count">0</span>)</span>
+          <!-- Voice Selector -->
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-400 font-medium">Voice:</label>
+            <select id="tts-voice-select" onchange="updateSelectedVoice()" class="text-xs bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
               <!-- Populated via speech API -->
             </select>
           </div>
         </div>
 
+        <!-- Vocabulary Table -->
+        <div class="overflow-y-auto flex-grow custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-800 text-slate-300 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
+              <tr>
+                <th class="py-3 px-3">French Translation</th>
+                <th class="py-3 px-3">English Word</th>
+                <th class="py-3 px-3">Context Sentence</th>
+                <th class="py-3 px-3 w-10 text-center">Audio</th>
+                <th class="py-3 px-3 w-10 text-center" id="header-show-del">
+                  <span class="show-mode-only">Show</span>
+                  <span class="edit-mode-only hidden">Del</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="vocab-table-body" class="text-xs">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -311,19 +357,6 @@
     <!-- TAB 2: A4 PRINTABLE WORKSHEET -->
     <!-- ========================================================================= -->
     <section id="printable-tab" class="tab-content hidden space-y-6">
-
-      <!-- Toolbar for Printing -->
-      <div class="no-print bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 class="text-lg font-bold text-slate-900">A4 Printable Student Worksheet</h2>
-          <p class="text-sm text-slate-500">Formatted for standard A4 paper with thick rows, dotted dividers, and handwritten student test column.</p>
-        </div>
-
-        <button onclick="window.print()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm px-5 py-2.5 rounded-xl inline-flex items-center space-x-2 shadow-md transition-all">
-          <i class="fa-solid fa-print"></i>
-          <span>Print / Save to PDF</span>
-        </button>
-      </div>
 
       <!-- Printable Document Wrapper (A4 Preview) -->
       <div class="flex justify-center">
@@ -336,8 +369,6 @@
                 <p class="text-xs text-slate-600 mt-1">English / French Vocabulary Self-Assessment</p>
               </div>
               <div class="text-right text-xs space-y-1 text-slate-700">
-                <p><strong>Date:</strong> ____________________</p>
-                <p><strong>Student Name:</strong> ____________________</p>
                 <p><strong>Score:</strong> ______ / <span id="print-total-count">0</span></p>
               </div>
             </div>
@@ -346,10 +377,10 @@
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="border-b-2 border-slate-800 text-xs font-bold uppercase text-slate-900">
-                  <th class="py-3 px-2 w-[8%] text-center">Error</th>
-                  <th class="py-3 px-3 w-[28%]">French</th>
-                  <th class="py-3 px-3 w-[36%]">English</th>
-                  <th class="py-3 px-3 w-[28%] bg-slate-50 text-slate-800 border-l border-slate-300">Student (Pencil)</th>
+                  <th class="py-3 px-2 w-[5%] text-center">✓</th>
+                  <th class="py-3 px-3 w-[23%]">French</th>
+                  <th class="py-3 px-3 w-[22%]">English</th>
+                  <th class="py-3 px-3 w-[50%] bg-slate-50 text-slate-800 border-l border-slate-300">Your Answer</th>
                 </tr>
               </thead>
               <tbody id="print-table-body">
@@ -360,34 +391,94 @@
 
           <!-- Printable Footer -->
           <div class="mt-8 pt-4 border-t border-slate-300 text-center text-[10px] text-slate-500 italic">
-            VocabMaster Self-Assessment Worksheet • Keep practicing for fluency!
+            Vocabulary Self-Assessment Worksheet • Keep practicing for fluency!
           </div>
         </div>
       </div>
     </section>
 
     <!-- ========================================================================= -->
-    <!-- TAB 3: LISTENING & SENTENCES EXERCISE (SENTENCE AUDIO ONLY) -->
+    <!-- TAB 3: LISTENING TEXT EXERCISE -->
     <!-- ========================================================================= -->
     <section id="listening-tab" class="tab-content hidden space-y-6">
 
-      <!-- Listening Intro Header -->
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 class="text-lg font-bold text-slate-900">Listening & Sentence Practice Studio</h2>
-          <p class="text-sm text-slate-500">Listen to complete English context sentences generated from your vocabulary list, test dictation, and reveal translations.</p>
+      <!-- Listening Text Container -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg p-6">
+        <div class="mb-4 flex justify-between items-center">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">
+            <span id="listening-mode-title">Listening Practice</span> - <span id="difficulty-display">A2 Elementary</span>
+          </h3>
+          <span class="text-xs text-slate-500">
+            <i class="fa-solid fa-book-open mr-1"></i>
+            <span id="word-usage-count">0</span> words used from list
+          </span>
         </div>
 
-        <button onclick="generateNewSentences()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl flex items-center space-x-2 shadow-sm transition-all">
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span>Regenerate Exercises</span>
-        </button>
+        <!-- Media Player (Listening Mode Only) -->
+        <div id="media-player" class="listening-mode-only bg-slate-950 rounded-xl border border-slate-700 p-6 mb-6">
+          <!-- Play/Pause Button -->
+          <div class="flex justify-center mb-6">
+            <button onclick="toggleAudioPlayback()" id="play-pause-btn" class="w-16 h-16 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center shadow-lg transition-all transform hover:scale-105">
+              <i class="fa-solid fa-play text-2xl" id="play-icon"></i>
+            </button>
+          </div>
+
+          <!-- Time Progress Bar -->
+          <div class="mb-4">
+            <div class="relative h-2 bg-slate-800 rounded-full cursor-pointer" onclick="seekAudio(event)" id="progress-bar-container">
+              <div id="progress-bar" class="absolute h-full bg-brand-500 rounded-full transition-all" style="width: 0%"></div>
+              <div id="progress-handle" class="absolute w-4 h-4 bg-white rounded-full shadow-lg -top-1 transition-all" style="left: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Time Display and Controls -->
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span id="current-time">0:00</span>
+            <div class="flex gap-3">
+              <button onclick="skipBackward()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors" title="Back 10s">
+                <i class="fa-solid fa-rotate-left"></i> 10s
+              </button>
+              <button onclick="skipForward()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors" title="Forward 10s">
+                10s <i class="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+            <span id="total-time">0:00</span>
+          </div>
+        </div>
+
+        <!-- Text Display/Edit Area (Collapsible in Edit Mode) -->
+        <div id="text-editor-section" class="listening-edit-only hidden">
+          <button onclick="toggleTextExpand()" class="w-full mb-3 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-left flex items-center justify-between transition-colors">
+            <span class="text-sm font-medium text-slate-300">
+              <i class="fa-solid fa-file-lines mr-2"></i>Edit Text Manually
+            </span>
+            <i class="fa-solid fa-chevron-down" id="expand-icon"></i>
+          </button>
+          <div id="text-editor-content" class="hidden bg-slate-950 rounded-xl border border-slate-700 p-6 min-h-[300px]">
+            <textarea
+              id="listening-text-area"
+              class="w-full h-full min-h-[250px] bg-transparent text-slate-200 leading-relaxed resize-none focus:outline-none border-2 border-brand-500"
+              placeholder="Click 'Generate Text' to create a listening exercise using all vocabulary words from your active list...">
+            </textarea>
+          </div>
+        </div>
+
+        <!-- Transcription Section (Listening Mode Only - Collapsible) -->
+        <div id="transcription-section" class="listening-mode-only mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+          <button onclick="toggleTranscription()" class="w-full px-6 py-3 flex items-center justify-between hover:bg-slate-800/80 transition-colors">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-align-left mr-2"></i>Text Transcription
+            </h4>
+            <i class="fa-solid fa-chevron-down text-slate-500" id="transcription-chevron"></i>
+          </button>
+          <div id="transcription-content-wrapper" class="hidden px-6 pb-6">
+            <div id="transcription-content" class="text-sm text-slate-300 leading-relaxed pt-3 border-t border-slate-700">
+              <!-- Text revealed progressively as audio plays -->
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Generated Sentence Audio Exercise Cards -->
-      <div id="sentence-cards-container" class="space-y-4">
-        <!-- Dynamically rendered sentence cards -->
-      </div>
     </section>
 
     <!-- ========================================================================= -->
@@ -426,12 +517,25 @@
 
   </main>
 
+  </div> <!-- End of main-app -->
+
   <script>
+    // =========================================================================
+    // SUPABASE CONFIGURATION
+    // =========================================================================
+
+    const SUPABASE_URL = 'https://ewhwuuorvitqjrldwtzz.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3aHd1dW9ydml0cWpybGR3dHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNjY0NjcsImV4cCI6MjEwNTc0MjQ2N30.xySzyvg7qLQPD9Ys_tiDi3hE50Yfr19BSao3ItlZMew'
+    const { createClient } = supabase
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    let currentUser = null
+
     // =========================================================================
     // STATE MANAGEMENT & SAMPLE DATA
     // =========================================================================
 
-    // Initial Multi-List Data
+    // Initial Multi-List Data (will be replaced with Supabase data after login)
     let userLists = {
       "Travel & Airport": [
         { en: "boarding pass", fr: "carte d'embarquement", sentence: "Please present your boarding pass at gate 4." },
@@ -458,37 +562,550 @@
     let isRecording = false;
     let recognition = null;
     let availableVoices = [];
+    let isEditMode = false;
+    let showAllEnglish = true;
+    let rowVisibility = {}; // Track individual row visibility
+    let recordingRow = null; // Track which row is currently recording
+    let updatedFields = {}; // Track which fields were updated by generation
+    let listeningEditMode = false; // Edit vs Listening mode
+    let listeningDifficulty = 'A2';
+    let listeningSpeed = 1.0;
+    let showTranscription = false;
+    let currentListeningText = '';
+    let audioPlaying = false;
+    let audioUtterance = null;
+    let audioDuration = 0;
+    let audioCurrentTime = 0;
+    let audioInterval = null;
+    let transcriptionExpanded = false;
+    let textWords = [];
 
     // =========================================================================
     // APPLICATION INITIALIZATION
     // =========================================================================
     window.addEventListener('DOMContentLoaded', () => {
+      // Initialize speech APIs (these don't depend on user data)
       initSpeechRecognition();
       initSpeechSynthesis();
-      renderListTabs();
-      renderVocabTable();
-      updateTargetWordCard();
-      renderPrintableWorksheet();
-      generateNewSentences();
+
+      // Check authentication state on page load
+      // This will call initializeApp() which renders everything
+      checkAuthState();
     });
+
+    // =========================================================================
+    // AUTHENTICATION FUNCTIONS
+    // =========================================================================
+
+    function showLogin() {
+      document.getElementById('login-form').classList.remove('hidden')
+      document.getElementById('signup-form').classList.add('hidden')
+      document.getElementById('auth-error').classList.add('hidden')
+    }
+
+    function showSignup() {
+      document.getElementById('login-form').classList.add('hidden')
+      document.getElementById('signup-form').classList.remove('hidden')
+      document.getElementById('auth-error').classList.add('hidden')
+    }
+
+    function showAuthError(message) {
+      const errorDiv = document.getElementById('auth-error')
+      errorDiv.textContent = message
+      errorDiv.classList.remove('hidden')
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value
+      const password = document.getElementById('login-password').value
+
+      if (!email || !password) {
+        showAuthError('Please enter email and password')
+        return
+      }
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password })
+
+      if (error) {
+        showAuthError(error.message)
+      } else {
+        currentUser = data.user
+        await initializeApp()
+      }
+    }
+
+    async function handleSignup() {
+      const name = document.getElementById('signup-name').value
+      const email = document.getElementById('signup-email').value
+      const password = document.getElementById('signup-password').value
+
+      if (!name || !email || !password) {
+        showAuthError('Please fill all fields')
+        return
+      }
+
+      if (password.length < 6) {
+        showAuthError('Password must be at least 6 characters')
+        return
+      }
+
+      // Create the account
+      const { data: signupData, error: signupError } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name }
+        }
+      })
+
+      if (signupError) {
+        showAuthError(signupError.message)
+        return
+      }
+
+      // Now sign in to establish a proper session
+      const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (loginError) {
+        showAuthError('Account created but login failed: ' + loginError.message)
+        return
+      }
+
+      currentUser = loginData.user
+      console.log('User created and logged in:', currentUser.id)
+
+      // Create default list for new user
+      await createDefaultList()
+      await initializeApp()
+    }
+
+    async function handleLogout() {
+      await supabaseClient.auth.signOut()
+      currentUser = null
+      document.getElementById('auth-screen').classList.remove('hidden')
+      document.getElementById('main-app').classList.add('hidden')
+    }
+
+    async function createDefaultList() {
+      const { data: list, error } = await supabaseClient
+        .from('vocabulary_lists')
+        .insert({ name: 'My First List', user_id: currentUser.id })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating default list:', error)
+        showAuthError('Error creating default list: ' + error.message)
+        return
+      }
+
+      if (!list) {
+        console.error('No list returned from insert')
+        return
+      }
+
+      // Add sample words
+      const { error: itemsError } = await supabaseClient.from('vocabulary_items').insert([
+        { list_id: list.id, en: 'hello', fr: 'bonjour', sentence: 'I need to say hello.', position: 0 },
+        { list_id: list.id, en: 'thank you', fr: 'merci', sentence: 'I want to say thank you.', position: 1 }
+      ])
+
+      if (itemsError) {
+        console.error('Error creating sample items:', itemsError)
+      }
+    }
+
+    async function checkAuthState() {
+      const { data: { session } } = await supabaseClient.auth.getSession()
+
+      if (session) {
+        currentUser = session.user
+        await initializeApp()
+      } else {
+        document.getElementById('auth-screen').classList.remove('hidden')
+        document.getElementById('main-app').classList.add('hidden')
+      }
+    }
+
+    async function initializeApp() {
+      document.getElementById('auth-screen').classList.add('hidden')
+      document.getElementById('main-app').classList.remove('hidden')
+
+      // Load user's vocabulary lists from Supabase
+      await loadUserLists()
+
+      // Render UI
+      renderListTabs()
+      renderVocabTable()
+      renderPrintableWorksheet()
+      generateListeningText()
+      updateListCount()
+
+      // Initialize show-mode-only visibility (start in read-only mode)
+      document.querySelectorAll('.show-mode-only').forEach(el => el.classList.remove('hidden'))
+      document.querySelectorAll('.edit-mode-only').forEach(el => el.classList.add('hidden'))
+
+      // Initialize listening tab (start in listening mode, not edit mode)
+      document.querySelectorAll('.listening-mode-only').forEach(el => el.classList.remove('hidden'))
+      document.querySelectorAll('.listening-edit-only').forEach(el => el.classList.add('hidden'))
+      estimateAudioDuration()
+    }
+
+    async function loadUserLists() {
+      // Fetch all lists with their items
+      const { data: lists } = await supabaseClient
+        .from('vocabulary_lists')
+        .select(`
+          id,
+          name,
+          vocabulary_items (
+            id,
+            en,
+            fr,
+            sentence,
+            position
+          )
+        `)
+        .order('name')
+
+      // Convert to existing userLists format
+      userLists = {}
+      if (lists && lists.length > 0) {
+        lists.forEach(list => {
+          // Sort items by position
+          const items = (list.vocabulary_items || []).sort((a, b) => a.position - b.position)
+          userLists[list.name] = items.map(item => ({
+            id: item.id, // Keep DB ID for updates
+            en: item.en,
+            fr: item.fr,
+            sentence: item.sentence || ''
+          }))
+        })
+
+        // Set active list
+        activeListName = lists[0].name
+      }
+    }
+
+    // =========================================================================
+    // UI FUNCTIONS
+    // =========================================================================
+
+    function toggleListManager() {
+      const sidebar = document.getElementById('list-manager-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+
+      if (sidebar.classList.contains('-translate-x-full')) {
+        // Open sidebar
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      } else {
+        // Close sidebar
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+      }
+    }
+
+    function updateListCount() {
+      const count = Object.keys(userLists).length;
+      document.getElementById('list-count').innerText = count;
+    }
+
+    function toggleEditMode() {
+      isEditMode = !isEditMode;
+      console.log('toggleEditMode - isEditMode is now:', isEditMode);
+      const editBtn = document.getElementById('edit-mode-btn');
+      const addBtn = document.getElementById('add-word-btn');
+      const genBtn = document.getElementById('generate-sentences-btn');
+      const verifyBtn = document.getElementById('verify-translations-btn');
+      const showHideBtn = document.getElementById('show-hide-btn');
+
+      if (isEditMode) {
+        // Edit mode ON
+        editBtn.innerHTML = '<i class="fa-solid fa-check"></i><span class="hidden sm:inline">Save</span><span class="sm:hidden">Save</span>';
+        editBtn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200', 'border-slate-600');
+        editBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'border-emerald-600');
+
+        // Hide show/hide button in edit mode
+        showHideBtn.classList.add('hidden');
+
+        // In edit mode, always show all English (reset visibility)
+        showAllEnglish = true;
+        rowVisibility = {};
+
+        // Update table header and show edit-mode-only buttons
+        document.querySelectorAll('.show-mode-only').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.edit-mode-only').forEach(el => el.classList.remove('hidden'));
+      } else {
+        // Read only mode
+        editBtn.innerHTML = '<i class="fa-solid fa-pencil"></i><span class="hidden sm:inline">Edit</span><span class="sm:hidden">Edit</span>';
+        editBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'border-emerald-600');
+        editBtn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200', 'border-slate-600');
+
+        // Show show/hide button in read-only mode
+        showHideBtn.classList.remove('hidden');
+
+        // Update table header and hide edit-mode-only buttons
+        document.querySelectorAll('.show-mode-only').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.edit-mode-only').forEach(el => el.classList.add('hidden'));
+      }
+
+      renderVocabTable();
+    }
+
+    function checkSpelling(input, idx, lang) {
+      // Browser's built-in spell checker will show red underlines
+      // This function can be extended to add custom validation
+      const value = input.value.trim();
+
+      if (value.length === 0) {
+        input.classList.remove('border-emerald-500', 'border-amber-500');
+        return;
+      }
+
+      // Basic validation - check if it contains letters
+      const hasLetters = /[a-zA-ZÀ-ÿ]/.test(value);
+      if (hasLetters) {
+        input.classList.add('border-emerald-400');
+        input.classList.remove('border-amber-400');
+      } else {
+        input.classList.add('border-amber-400');
+        input.classList.remove('border-emerald-400');
+      }
+    }
+
+    async function translateText(text, fromLang = 'fr', toLang = 'en') {
+      // MyMemory Translation API (free, no key needed)
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${fromLang}|${toLang}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.responseStatus === 200 && data.responseData) {
+          return data.responseData.translatedText;
+        } else {
+          console.error('Translation API error:', data);
+          return null;
+        }
+      } catch (error) {
+        console.error('Translation fetch error:', error);
+        return null;
+      }
+    }
+
+    async function verifyAllTranslations() {
+      if (!isEditMode) return;
+
+      const list = userLists[activeListName] || [];
+      updatedFields = {}; // Clear previous updates
+
+      // Show loading indicator
+      const btn = document.getElementById('verify-translations-btn');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span class="hidden sm:inline">Translating...</span>';
+
+      for (let idx = 0; idx < list.length; idx++) {
+        const item = list[idx];
+        if (item.fr && item.fr.trim() !== '') {
+          const frText = item.fr.trim();
+
+          // Call translation API
+          const translation = await translateText(frText, 'fr', 'en');
+
+          if (translation) {
+            const currentEn = item.en ? item.en.toLowerCase().trim() : '';
+            const translationLower = translation.toLowerCase().trim();
+
+            // Only add if current English doesn't already contain this translation
+            if (!currentEn.includes(translationLower)) {
+              // Add new translation
+              if (item.en && item.en.trim() !== '') {
+                item.en = item.en + ', ' + translation;
+              } else {
+                item.en = translation;
+              }
+              // Mark this field as updated
+              updatedFields[`${activeListName}-${idx}-en`] = true;
+
+              // Save to Supabase
+              if (item.id) {
+                const { error } = await supabaseClient
+                  .from('vocabulary_items')
+                  .update({ en: item.en, updated_at: new Date() })
+                  .eq('id', item.id)
+
+                if (error) {
+                  console.error('Error saving translation:', error)
+                }
+              } else {
+                console.warn('Cannot save translation - item has no ID')
+              }
+            }
+          }
+
+          // Small delay to avoid rate limiting (max ~5 requests/second)
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      // Restore button
+      if (btn) btn.innerHTML = originalText;
+
+      renderVocabTable();
+    }
+
+    async function generateSentenceWithAI(englishWord) {
+      // Use a free AI API to generate a short, simple context sentence
+      // Using Hugging Face Inference API (free tier)
+      const prompt = `Write one very short and simple English sentence (3-5 words) using the word "${englishWord}". Only output the sentence, nothing else.`;
+
+      try {
+        // Free API alternative: Using a simple sentence generator
+        // For now, use template-based generation as fallback
+        const templates = [
+          `I need ${englishWord}.`,
+          `Where is ${englishWord}?`,
+          `I found ${englishWord}.`,
+          `I have ${englishWord}.`,
+          `I want ${englishWord}.`,
+          `I lost ${englishWord}.`,
+          `I see ${englishWord}.`,
+          `I use ${englishWord}.`,
+          `I like ${englishWord}.`
+        ];
+
+        // Pick random template
+        const randomIndex = Math.floor(Math.random() * templates.length);
+        return templates[randomIndex];
+      } catch (error) {
+        console.error('Error generating sentence:', error);
+        return `I use ${englishWord}.`;
+      }
+    }
+
+    async function generateContextSentences() {
+      if (!isEditMode) {
+        console.log('Not in edit mode, cannot generate sentences');
+        return;
+      }
+
+      console.log('Generating sentences for list:', activeListName);
+      const list = userLists[activeListName] || [];
+      console.log('List has', list.length, 'items');
+
+      // Show loading indicator
+      const btn = document.getElementById('generate-sentences-btn');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span class="hidden sm:inline">Generating...</span>';
+
+      updatedFields = {}; // Clear previous updates
+      let generatedCount = 0;
+
+      for (let idx = 0; idx < list.length; idx++) {
+        const item = list[idx];
+        if (!item.sentence || item.sentence.trim() === '') {
+          // Use first English word if there are multiple (comma-separated)
+          const firstWord = item.en ? item.en.split(',')[0].trim() : 'it';
+
+          // Generate sentence
+          item.sentence = await generateSentenceWithAI(firstWord);
+
+          // Mark this field as updated
+          updatedFields[`${activeListName}-${idx}-sentence`] = true;
+
+          console.log(`Generated sentence for row ${idx}:`, item.sentence);
+
+          // Save to Supabase
+          if (item.id) {
+            const { error } = await supabaseClient
+              .from('vocabulary_items')
+              .update({ sentence: item.sentence, updated_at: new Date() })
+              .eq('id', item.id)
+
+            if (error) {
+              console.error(`Error saving sentence for row ${idx}:`, error);
+            } else {
+              generatedCount++;
+            }
+          } else {
+            console.warn(`Item at row ${idx} has no ID, cannot save to database`);
+          }
+
+          // Small delay to avoid overwhelming the system
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Restore button
+      if (btn) btn.innerHTML = originalText;
+
+      console.log(`Generated ${generatedCount} sentences`);
+      renderVocabTable();
+      renderPrintableWorksheet();
+    }
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
 
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('text-brand-600', 'bg-brand-50', 'border', 'border-brand-200', 'shadow-sm');
-        btn.classList.add('text-slate-600');
+      // Update tab navigation buttons
+      document.querySelectorAll('.tab-nav-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-500', 'text-white', 'active-tab-nav');
+        btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200');
       });
 
-      const activeNavBtn = document.getElementById(`nav-${tabId}`);
+      // Map tab IDs to nav button IDs
+      const navMap = {
+        'manage-tab': 'nav-edit',
+        'printable-tab': 'nav-print',
+        'listening-tab': 'nav-listen'
+      };
+
+      const activeNavBtn = document.getElementById(navMap[tabId]);
       if (activeNavBtn) {
-        activeNavBtn.classList.remove('text-slate-600');
-        activeNavBtn.classList.add('text-brand-600', 'bg-brand-50', 'border', 'border-brand-200', 'shadow-sm');
+        activeNavBtn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200');
+        activeNavBtn.classList.add('bg-brand-500', 'text-white', 'active-tab-nav');
+      }
+
+      // Show/hide contextual actions
+      document.querySelectorAll('.contextual-actions').forEach(el => el.classList.add('hidden'));
+
+      const actionsMap = {
+        'manage-tab': 'actions-manage',
+        'printable-tab': 'actions-printable',
+        'listening-tab': 'actions-listening'
+      };
+
+      const activeActions = document.getElementById(actionsMap[tabId]);
+      if (activeActions) {
+        activeActions.classList.remove('hidden');
+      }
+
+      // Update tab description
+      const descriptionMap = {
+        'manage-tab': 'Manage your vocabulary lists, edit words, and practice pronunciation',
+        'printable-tab': 'Print A4 worksheets for offline practice in the kitchen, restaurant, or anywhere',
+        'listening-tab': `Listen to a cohesive text containing all words from "${activeListName}" - Adjust difficulty (A1-C2) and playback speed`
+      };
+
+      const descriptionEl = document.getElementById('tab-description');
+      if (descriptionEl && descriptionMap[tabId]) {
+        descriptionEl.innerText = descriptionMap[tabId];
       }
 
       if (tabId === 'printable-tab') renderPrintableWorksheet();
-      if (tabId === 'listening-tab') generateNewSentences();
+      if (tabId === 'listening-tab') {
+        if (!currentListeningText) {
+          generateListeningText();
+          estimateAudioDuration();
+        }
+      }
     }
 
     // =========================================================================
@@ -502,10 +1119,10 @@
       Object.keys(userLists).forEach(listName => {
         const isActive = listName === activeListName;
         const btn = document.createElement('button');
-        btn.className = `px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 ${
+        btn.className = `w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-between ${
           isActive
-            ? 'bg-brand-600 text-white shadow-xs'
-            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            ? 'bg-brand-600 text-white shadow-sm'
+            : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
         }`;
 
         btn.onclick = () => {
@@ -513,32 +1130,54 @@
           selectedWordIndex = 0;
           renderListTabs();
           renderVocabTable();
-          updateTargetWordCard();
+          renderPrintableWorksheet();
+          generateListeningText();
+          toggleListManager(); // Close sidebar after selecting
         };
 
         btn.innerHTML = `
-          <span>${escapeHtml(listName)}</span>
-          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-brand-700 text-white' : 'bg-slate-200 text-slate-600'}">${userLists[listName].length}</span>
+          <span class="truncate">${escapeHtml(listName)}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full ml-2 ${isActive ? 'bg-brand-700 text-white' : 'bg-slate-700 text-slate-300'}">${userLists[listName].length}</span>
         `;
         container.appendChild(btn);
       });
     }
 
-    function createNewList() {
-      const name = prompt("Enter a name for the new vocabulary list:", "Daily Phrases");
-      if (name && name.trim()) {
-        const trimmed = name.trim();
-        if (!userLists[trimmed]) {
-          userLists[trimmed] = [
-            { en: "hello", fr: "bonjour", sentence: "Hello, how are you today?" }
-          ];
-        }
-        activeListName = trimmed;
-        selectedWordIndex = 0;
-        renderListTabs();
-        renderVocabTable();
-        updateTargetWordCard();
+    async function createNewList() {
+      const listName = prompt('Enter new list name:')
+      if (!listName || listName.trim() === '') return
+
+      const trimmedName = listName.trim()
+
+      // Check if exists
+      if (userLists[trimmedName]) {
+        alert('List already exists!')
+        return
       }
+
+      // Create in database
+      const { data: newList, error } = await supabaseClient
+        .from('vocabulary_lists')
+        .insert({
+          name: trimmedName,
+          user_id: currentUser.id
+        })
+        .select()
+        .single()
+
+      if (error) {
+        alert('Error creating list: ' + error.message)
+        return
+      }
+
+      // Add to local state
+      userLists[trimmedName] = []
+      activeListName = trimmedName
+      selectedWordIndex = 0
+
+      renderListTabs()
+      renderVocabTable()
+      updateListCount()
     }
 
     function renderVocabTable() {
@@ -549,88 +1188,306 @@
 
       list.forEach((item, idx) => {
         const isSelected = idx === selectedWordIndex;
+        const readonly = isEditMode ? '' : 'readonly';
+        const readonlyClass = isEditMode ? '' : 'cursor-default';
+
+        // Check if this row should show English (individual override or global setting)
+        // In Edit mode, always show English
+        const rowKey = `${activeListName}-${idx}`;
+        const showEnglish = isEditMode ? true : (rowVisibility[rowKey] !== undefined ? rowVisibility[rowKey] : showAllEnglish);
+        const hiddenClass = showEnglish ? '' : 'opacity-0 pointer-events-none';
+
+        // Check if fields were updated by generation
+        const frUpdated = updatedFields[`${activeListName}-${idx}-fr`];
+        const enUpdated = updatedFields[`${activeListName}-${idx}-en`];
+        const sentenceUpdated = updatedFields[`${activeListName}-${idx}-sentence`];
+
+        const frUnderline = frUpdated ? 'border-b-2 border-emerald-400' : 'border-b border-slate-700';
+        const enUnderline = enUpdated ? 'border-b-2 border-emerald-400' : 'border-b border-slate-700';
+        const sentenceUnderline = sentenceUpdated ? 'border-b-2 border-emerald-400' : 'border-b border-slate-700';
+
+        // Main word row
         const tr = document.createElement('tr');
-        tr.className = `cursor-pointer transition-colors ${isSelected ? 'bg-brand-50/70 border-l-4 border-l-brand-600' : 'hover:bg-slate-50'}`;
+        tr.className = `word-row cursor-pointer transition-colors ${isSelected ? 'bg-brand-950/40 border-l-4 border-l-brand-500' : 'hover:bg-slate-800/50'}`;
         tr.onclick = () => selectWord(idx);
 
         tr.innerHTML = `
-          <!-- Listen Button next to each word -->
+          <!-- French Input (FIRST) -->
+          <td class="py-2.5 px-3">
+            <div class="flex items-center gap-1">
+              <input type="text"
+                value="${escapeHtml(item.fr)}"
+                data-row="${idx}"
+                data-col="0"
+                spellcheck="true"
+                lang="fr"
+                onchange="updateWordItem(${idx}, 'fr', this.value)"
+                oninput="checkSpelling(this, ${idx}, 'fr')"
+                onkeydown="handleKeyNavigation(event, ${idx}, 0)"
+                onclick="event.stopPropagation()"
+                ${readonly}
+                class="vocab-input bg-transparent ${frUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full font-semibold text-slate-100 ${readonlyClass}">
+              ${isEditMode && item.fr ? `
+                <button onclick="event.stopPropagation(); clearField(${idx}, 'fr')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+          <!-- English Input (with hide/show) -->
+          <td class="py-2.5 px-3 transition-opacity duration-300">
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-1 ${hiddenClass}">
+                <input type="text"
+                  value="${escapeHtml(item.en)}"
+                  data-row="${idx}"
+                  data-col="1"
+                  id="en-input-${idx}"
+                  spellcheck="true"
+                  lang="en"
+                  onchange="updateWordItem(${idx}, 'en', this.value)"
+                  oninput="checkSpelling(this, ${idx}, 'en')"
+                  onkeydown="handleKeyNavigation(event, ${idx}, 1)"
+                  onclick="event.stopPropagation()"
+                  ${readonly}
+                  class="vocab-input bg-transparent ${enUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full text-slate-300 ${readonlyClass}">
+                ${isEditMode && item.en ? `
+                  <button onclick="event.stopPropagation(); clearField(${idx}, 'en')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                ` : ''}
+              </div>
+              <div id="recorded-${idx}" class="hidden flex items-center gap-2 text-xs">
+                <span class="text-slate-500">Recorded:</span>
+                <span id="transcript-${idx}" class="text-slate-400 italic"></span>
+                <span id="score-${idx}" class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"></span>
+              </div>
+            </div>
+          </td>
+          <!-- Context Sentence Input (with hide/show) -->
+          <td class="py-2.5 px-3 transition-opacity duration-300">
+            <div class="flex items-center gap-1 ${hiddenClass}">
+              <input type="text"
+                value="${escapeHtml(item.sentence || '')}"
+                data-row="${idx}"
+                data-col="2"
+                spellcheck="true"
+                lang="en"
+                placeholder="${isEditMode ? 'Short sentence...' : ''}"
+                onchange="updateWordItem(${idx}, 'sentence', this.value)"
+                onkeydown="handleKeyNavigation(event, ${idx}, 2)"
+                onclick="event.stopPropagation()"
+                ${readonly}
+                class="vocab-input bg-transparent ${sentenceUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full text-slate-400 italic text-[11px] ${readonlyClass}">
+              ${isEditMode && item.sentence ? `
+                <button onclick="event.stopPropagation(); clearField(${idx}, 'sentence')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+          <!-- Audio Column: Listen (always) + Record (read-only mode only) -->
           <td class="py-2.5 px-3 text-center">
-            <button onclick="event.stopPropagation(); playWordTTS('${escapeHtml(item.en)}')" class="p-1.5 text-brand-600 hover:bg-brand-100 rounded-lg transition-colors" title="Listen Word">
-              <i class="fa-solid fa-volume-high"></i>
-            </button>
+            <div class="flex flex-col gap-1 items-center">
+              <button onclick="event.stopPropagation(); playWordTTS('${escapeHtml(item.en)}')" class="p-1.5 text-brand-400 hover:bg-brand-950/50 rounded-lg transition-colors" title="Listen Word">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+              ${!isEditMode ? `
+                <button onclick="event.stopPropagation(); toggleRecording(${idx})" id="mic-btn-${idx}" class="show-mode-only p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors" title="Record">
+                  <i class="fa-solid fa-microphone text-sm" id="mic-icon-${idx}"></i>
+                </button>
+              ` : ''}
+            </div>
           </td>
-          <!-- English Input -->
-          <td class="py-2.5 px-3">
-            <input type="text" value="${escapeHtml(item.en)}" onchange="updateWordItem(${idx}, 'en', this.value)" onclick="event.stopPropagation()" class="bg-transparent border-b border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none w-full font-semibold text-slate-900">
-          </td>
-          <!-- French Input -->
-          <td class="py-2.5 px-3">
-            <input type="text" value="${escapeHtml(item.fr)}" onchange="updateWordItem(${idx}, 'fr', this.value)" onclick="event.stopPropagation()" class="bg-transparent border-b border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none w-full text-slate-600">
-          </td>
-          <!-- Context Sentence Input -->
-          <td class="py-2.5 px-3">
-            <input type="text" value="${escapeHtml(item.sentence || '')}" placeholder="Short sentence..." onchange="updateWordItem(${idx}, 'sentence', this.value)" onclick="event.stopPropagation()" class="bg-transparent border-b border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none w-full text-slate-500 italic text-[11px]">
-          </td>
-          <!-- Action Delete -->
+          <!-- Show/Hide or Delete Button (conditional) -->
           <td class="py-2.5 px-3 text-center">
-            <button onclick="event.stopPropagation(); removeWordRow(${idx})" class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete Word">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>
+            ${isEditMode ? `
+              <button onclick="event.stopPropagation(); removeWordRow(${idx})" class="edit-mode-only p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded transition-colors" title="Delete Word">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            ` : `
+              <button onclick="event.stopPropagation(); toggleRowVisibility(${idx})" class="show-mode-only p-1.5 text-slate-400 hover:bg-slate-700 rounded-lg transition-colors" title="Show/Hide English">
+                <i class="fa-solid ${showEnglish ? 'fa-eye-slash' : 'fa-eye'}"></i>
+              </button>
+            `}
           </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
+    function handleKeyNavigation(event, row, col) {
+      const list = userLists[activeListName] || [];
+
+      if (event.key === 'Tab') {
+        event.preventDefault();
+
+        if (event.shiftKey) {
+          // Shift+Tab: Move to previous field
+          if (col > 0) {
+            focusInput(row, col - 1);
+          } else if (row > 0) {
+            focusInput(row - 1, 2); // Last column of previous row
+          }
+        } else {
+          // Tab: Move to next field
+          if (col < 2) {
+            focusInput(row, col + 1);
+          } else if (row < list.length - 1) {
+            focusInput(row + 1, 0); // First column of next row
+          } else {
+            // Last field of last row - create new row
+            addNewWordRow();
+            setTimeout(() => focusInput(0, 0), 100);
+          }
+        }
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        // Enter: Create new row and move to it
+        addNewWordRow();
+        setTimeout(() => focusInput(0, 0), 100);
+      }
+    }
+
+    function focusInput(row, col) {
+      const input = document.querySelector(`input[data-row="${row}"][data-col="${col}"]`);
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+
     function selectWord(index) {
       selectedWordIndex = index;
       renderVocabTable();
-      updateTargetWordCard();
-      resetResultBox();
     }
 
-    function updateTargetWordCard() {
-      const list = userLists[activeListName] || [];
-      const current = list[selectedWordIndex] || { en: "---", fr: "---", sentence: "" };
-
-      document.getElementById('current-target-word').innerText = current.en || '---';
-      document.getElementById('current-target-fr').innerText = current.fr || '---';
-
-      const sentenceEl = document.getElementById('current-target-sentence');
-      if (current.sentence && current.sentence.trim() !== '') {
-        sentenceEl.innerText = `"${current.sentence}"`;
-        sentenceEl.classList.remove('hidden');
-      } else {
-        sentenceEl.classList.add('hidden');
-      }
-    }
-
-    function updateWordItem(index, key, val) {
+    async function updateWordItem(index, key, val) {
       if (userLists[activeListName] && userLists[activeListName][index]) {
-        userLists[activeListName][index][key] = val.trim();
-        if (index === selectedWordIndex) updateTargetWordCard();
+        const item = userLists[activeListName][index]
+        item[key] = val.trim()
+
+        // Save to Supabase
+        if (item.id) {
+          const { error } = await supabaseClient
+            .from('vocabulary_items')
+            .update({ [key]: val.trim(), updated_at: new Date() })
+            .eq('id', item.id)
+
+          if (error) {
+            console.error('Error updating word:', error)
+          }
+        } else {
+          console.warn('Item has no ID, cannot save to database:', item)
+        }
+
+        // Clear the update indicator when user manually edits
+        const fieldKey = `${activeListName}-${index}-${key}`
+        if (updatedFields[fieldKey]) {
+          delete updatedFields[fieldKey]
+        }
       }
     }
 
-    function addNewWordRow() {
-      if (!userLists[activeListName]) userLists[activeListName] = [];
-      userLists[activeListName].unshift({ en: "new word", fr: "nouveau mot", sentence: "This is a new context sentence." });
-      selectedWordIndex = 0;
-      renderListTabs();
-      renderVocabTable();
-      updateTargetWordCard();
+    async function clearField(index, key) {
+      if (userLists[activeListName] && userLists[activeListName][index]) {
+        const item = userLists[activeListName][index]
+        item[key] = ''
+
+        // Save to Supabase
+        if (item.id) {
+          await supabaseClient
+            .from('vocabulary_items')
+            .update({ [key]: '', updated_at: new Date() })
+            .eq('id', item.id)
+        }
+
+        // Clear the update indicator
+        const fieldKey = `${activeListName}-${index}-${key}`
+        if (updatedFields[fieldKey]) {
+          delete updatedFields[fieldKey]
+        }
+        renderVocabTable()
+      }
     }
 
-    function removeWordRow(index) {
+    async function addNewWordRow() {
+      if (!isEditMode) return
+
+      // Get current list ID
+      const { data: list } = await supabaseClient
+        .from('vocabulary_lists')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('name', activeListName)
+        .single()
+
+      if (!list) return
+
+      // Create new item in database
+      const { data: newItem, error: insertError } = await supabaseClient
+        .from('vocabulary_items')
+        .insert({
+          list_id: list.id,
+          en: '',
+          fr: '',
+          sentence: '',
+          position: 0 // Will be at top
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Error adding word:', insertError)
+        alert('Error adding word: ' + insertError.message)
+        return
+      }
+
+      if (!newItem) {
+        console.error('No item returned from insert')
+        alert('Error: No item returned from database')
+        return
+      }
+
+      // Add to local state
+      if (!userLists[activeListName]) userLists[activeListName] = []
+      userLists[activeListName].unshift({
+        id: newItem.id,
+        en: '',
+        fr: '',
+        sentence: ''
+      })
+
+      selectedWordIndex = 0
+      renderVocabTable()
+      renderPrintableWorksheet()
+
+      // Auto-focus the first French input (new row at index 0)
+      setTimeout(() => {
+        const firstInput = document.querySelector('[data-row="0"][data-col="0"]')
+        if (firstInput) firstInput.focus()
+      }, 50)
+    }
+
+    async function removeWordRow(index) {
+      if (!isEditMode) return
       if (userLists[activeListName]) {
+        const item = userLists[activeListName][index]
+
+        // Delete from Supabase
+        if (item.id) {
+          await supabaseClient
+            .from('vocabulary_items')
+            .delete()
+            .eq('id', item.id)
+        }
+
         userLists[activeListName].splice(index, 1);
         if (selectedWordIndex >= userLists[activeListName].length) {
           selectedWordIndex = Math.max(0, userLists[activeListName].length - 1);
         }
         renderListTabs();
         renderVocabTable();
-        updateTargetWordCard();
       }
     }
 
@@ -673,7 +1530,7 @@
             selectedWordIndex = 0;
             renderListTabs();
             renderVocabTable();
-            updateTargetWordCard();
+                        updateListCount();
           }
         } catch (err) {
           alert('Error reading file. Please check format.');
@@ -696,25 +1553,24 @@
 
       list.forEach((item, idx) => {
         const tr = document.createElement('tr');
-        tr.className = 'print-row py-4'; // Generous vertical padding for pencil handwriting
+        tr.className = 'print-row border-b border-dotted border-slate-400'; // Dotted line separator
 
         tr.innerHTML = `
           <!-- Error Tick Box -->
-          <td class="py-4 px-2 text-center align-top">
-            <div class="w-5 h-5 border-2 border-slate-400 rounded inline-block"></div>
+          <td class="py-3 px-2 text-center align-middle">
+            <div class="w-4 h-4 border-2 border-slate-400 rounded inline-block"></div>
           </td>
           <!-- French Word -->
-          <td class="py-4 px-3 font-semibold text-slate-800 align-top text-sm">
+          <td class="py-3 px-2 font-semibold text-slate-800 align-middle text-sm">
             ${escapeHtml(item.fr)}
           </td>
-          <!-- English Word + Very Small Context Sentence -->
-          <td class="py-4 px-3 align-top">
+          <!-- English Word (no context sentence) -->
+          <td class="py-3 px-2 align-middle">
             <div class="font-bold text-slate-900 text-sm">${escapeHtml(item.en)}</div>
-            ${item.sentence ? `<div class="text-[10px] text-slate-500 italic mt-1 leading-tight">${escapeHtml(item.sentence)}</div>` : ''}
           </td>
-          <!-- Student Handwriting Space (Extra Wide) -->
-          <td class="py-4 px-3 bg-slate-50/50 border-l border-slate-300 align-top">
-            <!-- Left empty for student pencil writing -->
+          <!-- Student Handwriting Space with dotted line - WIDE -->
+          <td class="py-3 px-3 bg-slate-50/50 border-l border-slate-300 align-middle">
+            <div class="border-b-2 border-dotted border-slate-400 h-8 w-full"></div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -722,80 +1578,361 @@
     }
 
     // =========================================================================
-    // FEATURE 3: LISTENING & SENTENCE GENERATOR (NO WORD AUDIO BUTTONS)
+    // FEATURE 3: LISTENING TEXT EXERCISE
     // =========================================================================
 
-    function generateNewSentences() {
-      const container = document.getElementById('sentence-cards-container');
-      container.innerHTML = '';
-
+    function generateListeningText() {
       const list = userLists[activeListName] || [];
       if (list.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-slate-400">Add words to your active list to view listening exercises.</div>';
+        alert('Please add words to your active list first.');
         return;
       }
 
-      list.forEach((item, idx) => {
-        // Fallback sentence if missing
-        const sentenceText = item.sentence && item.sentence.trim() !== ''
-          ? item.sentence
-          : `Please remember that the word is ${item.en}.`;
+      // Get all English words from the list
+      const words = list.map(item => item.en).filter(w => w && w.trim() !== '');
 
-        const card = document.createElement('div');
-        card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4";
-        card.innerHTML = `
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <div class="flex items-center space-x-3">
-              <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
-              <span class="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded">Vocabulary Target Sentence</span>
-            </div>
+      // Generate a cohesive text based on difficulty level
+      const text = createTextFromWords(words, listeningDifficulty);
+      currentListeningText = text;
 
-            <!-- Full Sentence Audio Button Only -->
-            <button onclick="playWordTTS('${escapeHtml(sentenceText)}')" class="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-medium transition-all shadow-xs">
-              <i class="fa-solid fa-volume-high"></i>
-              <span>Listen Full Sentence</span>
-            </button>
-          </div>
+      // Update the textarea
+      const textarea = document.getElementById('listening-text-area');
+      if (textarea) {
+        textarea.value = text;
+      }
 
-          <!-- Dictation Challenge -->
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
-            <p class="text-sm text-slate-800 leading-relaxed font-medium">
-              "${sentenceText.replace(new RegExp(escapeRegExp(item.en), 'gi'), `<input type="text" data-answer="${escapeHtml(item.en)}" placeholder="type word..." onkeyup="checkDictationAnswer(this)" class="inline-block border-b-2 border-brand-500 px-2 py-0.5 text-center bg-white rounded font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">`)}"
-            </p>
-          </div>
+      // Update transcription content
+      const transcriptionContent = document.getElementById('transcription-content');
+      if (transcriptionContent) {
+        transcriptionContent.innerText = text;
+      }
 
-          <!-- Reveal Translation -->
-          <div class="pt-1">
-            <button onclick="toggleTranslation('trans-${idx}')" class="text-xs text-slate-500 hover:text-brand-600 font-medium flex items-center space-x-1 focus:outline-none">
-              <i class="fa-solid fa-eye text-xs"></i>
-              <span>Show French Word Meaning</span>
-            </button>
-            <div id="trans-${idx}" class="hidden mt-2 p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg text-xs text-indigo-900 italic">
-              Meaning: "${escapeHtml(item.fr)}"
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
-      });
+      // Update word count
+      const wordCount = document.getElementById('word-usage-count');
+      if (wordCount) {
+        wordCount.innerText = words.length;
+      }
     }
 
-    function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    function createTextFromWords(words, difficulty) {
+      // Create a cohesive text that includes all vocabulary words
+      const templates = {
+        'A1': (words) => {
+          return `This is a story about travel. You need a ${words[0] || 'ticket'}. You go to the ${words[1] || 'airport'}. You see the ${words[2] || 'gate'}. ${words.slice(3).map(w => `You also see a ${w}.`).join(' ')} It is very busy. You are happy.`;
+        },
+        'A2': (words) => {
+          return `When you travel, you need several things. First, you must have your ${words[0] || 'documents'}. At the airport, you will find the ${words[1] || 'check-in desk'}. ${words.slice(2).map(w => `Don't forget about the ${w}.`).join(' ')} Everything is organized to help travelers have a smooth journey.`;
+        },
+        'B1': (words) => {
+          return `Traveling internationally requires careful preparation. You should always carry your ${words[0] || 'passport'} and ${words[1] || 'tickets'}. When you arrive at the airport, locate the ${words[2] || 'terminal'}. ${words.slice(3).map(w => `Pay attention to the ${w} as well.`).join(' ')} Following these steps will ensure your trip goes smoothly and without complications.`;
+        },
+        'B2': (words) => {
+          return `International travel demands meticulous planning and organization. Essential items include your ${words[0] || 'identification'}, ${words[1] || 'travel documents'}, and confirmation details. Upon arrival, you'll need to navigate through the ${words[2] || 'complex'}. ${words.slice(3).map(w => `The ${w} plays an important role in the process.`).join(' ')} Understanding these procedures will facilitate a seamless travel experience.`;
+        },
+        'C1': (words) => {
+          return `Embarking on international journeys necessitates comprehensive preparation and strategic planning. Travelers must ensure they possess requisite documentation such as ${words[0] || 'credentials'} and ${words[1] || 'authorization'}. Upon reaching the ${words[2] || 'facility'}, various procedural requirements await. ${words.slice(3).map(w => `The significance of the ${w} cannot be overstated in this context.`).join(' ')} Adhering to these protocols guarantees an efficient and unencumbered travel experience.`;
+        },
+        'C2': (words) => {
+          return `Undertaking transcontinental expeditions demands scrupulous attention to multifaceted logistical considerations. Sophisticated travelers invariably ensure comprehensive documentation, including ${words[0] || 'accreditation'} and ${words[1] || 'verification instruments'}. Navigating through ${words[2] || 'infrastructural complexes'} requires both perspicacity and methodical adherence to established protocols. ${words.slice(3).map(w => `The instrumental nature of the ${w} manifests throughout the procedural continuum.`).join(' ')} Such thoroughness epitomizes the quintessential approach to contemporary international mobility.`;
+        }
+      };
+
+      const template = templates[difficulty] || templates['A2'];
+      return template(words);
     }
 
-    function toggleTranslation(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('hidden');
-    }
+    function toggleListeningMode() {
+      listeningEditMode = !listeningEditMode;
+      const btn = document.getElementById('listening-mode-btn');
+      const modeTitle = document.getElementById('listening-mode-title');
+      const textarea = document.getElementById('listening-text-area');
 
-    function checkDictationAnswer(input) {
-      const expected = input.getAttribute('data-answer').toLowerCase().trim();
-      const actual = input.value.toLowerCase().trim();
+      if (listeningEditMode) {
+        // Switch to EDIT MODE
+        btn.innerHTML = '<i class="fa-solid fa-check"></i><span class="hidden sm:inline">Save</span><span class="sm:hidden">Save</span>';
+        btn.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200', 'border-slate-600');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'border-emerald-600');
 
-      if (actual === expected) {
-        input.className = "inline-block border-2 border-emerald-500 bg-emerald-50 px-2 py-0.5 text-center rounded font-bold text-emerald-800 text-sm";
+        if (modeTitle) modeTitle.innerText = 'Edit Mode';
+
+        // Show edit-only buttons, hide listening-only
+        document.querySelectorAll('.listening-edit-only').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.listening-mode-only').forEach(el => el.classList.add('hidden'));
+
+        // Collapse transcription in edit mode
+        const wrapper = document.getElementById('transcription-content-wrapper');
+        const chevron = document.getElementById('transcription-chevron');
+        if (wrapper) wrapper.classList.add('hidden');
+        if (chevron) chevron.className = 'fa-solid fa-chevron-down text-slate-500';
+        transcriptionExpanded = false;
+
+        // Stop audio if playing
+        stopAudio();
       } else {
-        input.className = "inline-block border-b-2 border-brand-500 px-2 py-0.5 text-center bg-white rounded font-bold text-brand-700 focus:outline-none text-sm";
+        // Switch to LISTENING MODE
+        btn.innerHTML = '<i class="fa-solid fa-pencil"></i><span class="hidden sm:inline">Edit</span><span class="sm:hidden">Edit</span>';
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'border-emerald-600');
+        btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200', 'border-slate-600');
+
+        if (modeTitle) modeTitle.innerText = 'Listening Practice';
+
+        // Save text
+        currentListeningText = textarea.value;
+
+        // Update transcription - will be progressively revealed
+        updateTranscriptionDisplay();
+
+        // Show listening-only buttons, hide edit-only
+        document.querySelectorAll('.listening-edit-only').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.listening-mode-only').forEach(el => el.classList.remove('hidden'));
+
+        // Calculate estimated audio duration
+        estimateAudioDuration();
+      }
+    }
+
+    function toggleTextExpand() {
+      const content = document.getElementById('text-editor-content');
+      const icon = document.getElementById('expand-icon');
+
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.className = 'fa-solid fa-chevron-up';
+      } else {
+        content.classList.add('hidden');
+        icon.className = 'fa-solid fa-chevron-down';
+      }
+    }
+
+    function toggleAudioPlayback() {
+      if (audioPlaying) {
+        pauseAudio();
+      } else {
+        playAudio();
+      }
+    }
+
+    function playAudio() {
+      const text = currentListeningText || document.getElementById('listening-text-area').value;
+      if (!text || text.trim() === '') {
+        alert('Please generate a text first.');
+        return;
+      }
+
+      if (!('speechSynthesis' in window)) {
+        alert('Text-to-Speech is not supported in this browser.');
+        return;
+      }
+
+      // Cancel any existing speech
+      window.speechSynthesis.cancel();
+
+      audioUtterance = new SpeechSynthesisUtterance(text);
+      audioUtterance.lang = 'en-US';
+      audioUtterance.rate = listeningSpeed;
+
+      const select = document.getElementById('tts-voice-select');
+      if (availableVoices[select.value]) {
+        audioUtterance.voice = availableVoices[select.value];
+      }
+
+      audioUtterance.onstart = () => {
+        audioPlaying = true;
+        updatePlayPauseButton();
+        startProgressTracking();
+      };
+
+      audioUtterance.onend = () => {
+        audioPlaying = false;
+        audioCurrentTime = 0;
+        updatePlayPauseButton();
+        updateProgressBar();
+        stopProgressTracking();
+      };
+
+      audioUtterance.onpause = () => {
+        audioPlaying = false;
+        updatePlayPauseButton();
+        stopProgressTracking();
+      };
+
+      window.speechSynthesis.speak(audioUtterance);
+    }
+
+    function pauseAudio() {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        audioPlaying = false;
+        updatePlayPauseButton();
+        stopProgressTracking();
+      }
+    }
+
+    function stopAudio() {
+      window.speechSynthesis.cancel();
+      audioPlaying = false;
+      audioCurrentTime = 0;
+      updatePlayPauseButton();
+      updateProgressBar();
+      stopProgressTracking();
+    }
+
+    function updatePlayPauseButton() {
+      const btn = document.getElementById('play-pause-btn');
+      const icon = document.getElementById('play-icon');
+
+      if (audioPlaying) {
+        icon.className = 'fa-solid fa-pause text-2xl';
+        btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+        btn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+      } else {
+        icon.className = 'fa-solid fa-play text-2xl';
+        btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+        btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+      }
+    }
+
+    function estimateAudioDuration() {
+      const text = currentListeningText || '';
+      // Split text into words for progressive reveal
+      textWords = text.split(/\s+/).filter(w => w.length > 0);
+
+      // Rough estimation: average speaking rate is about 150 words per minute
+      const wordCount = textWords.length;
+      const estimatedMinutes = (wordCount / 150) / listeningSpeed;
+      audioDuration = estimatedMinutes * 60; // Convert to seconds
+
+      updateTimeDisplay();
+      updateTranscriptionDisplay();
+    }
+
+    function startProgressTracking() {
+      audioCurrentTime = 0;
+      audioInterval = setInterval(() => {
+        if (audioPlaying && audioCurrentTime < audioDuration) {
+          audioCurrentTime += 0.1;
+          updateProgressBar();
+          updateTimeDisplay();
+          updateTranscriptionDisplay();
+        }
+      }, 100);
+    }
+
+    function updateTranscriptionDisplay() {
+      const transcriptionContent = document.getElementById('transcription-content');
+      if (!transcriptionContent || textWords.length === 0) return;
+
+      // Calculate how many words should be visible based on progress
+      const progress = audioDuration > 0 ? audioCurrentTime / audioDuration : 0;
+      const visibleWordCount = Math.floor(progress * textWords.length);
+
+      // Build HTML with only visible words (spoken words)
+      let html = '';
+      for (let i = 0; i < visibleWordCount; i++) {
+        html += `${textWords[i]} `;
+      }
+
+      transcriptionContent.innerHTML = html.trim();
+    }
+
+    function stopProgressTracking() {
+      if (audioInterval) {
+        clearInterval(audioInterval);
+        audioInterval = null;
+      }
+    }
+
+    function updateProgressBar() {
+      const progress = audioDuration > 0 ? (audioCurrentTime / audioDuration) * 100 : 0;
+      const progressBar = document.getElementById('progress-bar');
+      const progressHandle = document.getElementById('progress-handle');
+
+      if (progressBar) progressBar.style.width = `${progress}%`;
+      if (progressHandle) progressHandle.style.left = `calc(${progress}% - 8px)`;
+    }
+
+    function updateTimeDisplay() {
+      const currentEl = document.getElementById('current-time');
+      const totalEl = document.getElementById('total-time');
+
+      if (currentEl) currentEl.innerText = formatTime(audioCurrentTime);
+      if (totalEl) totalEl.innerText = formatTime(audioDuration);
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function seekAudio(event) {
+      const bar = document.getElementById('progress-bar-container');
+      const rect = bar.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const percentage = clickX / rect.width;
+
+      audioCurrentTime = percentage * audioDuration;
+      updateProgressBar();
+      updateTimeDisplay();
+      updateTranscriptionDisplay();
+
+      // Restart audio from new position (approximation)
+      if (audioPlaying) {
+        stopAudio();
+        playAudio();
+      }
+    }
+
+    function skipBackward() {
+      audioCurrentTime = Math.max(0, audioCurrentTime - 10);
+      updateProgressBar();
+      updateTimeDisplay();
+      updateTranscriptionDisplay();
+    }
+
+    function skipForward() {
+      audioCurrentTime = Math.min(audioDuration, audioCurrentTime + 10);
+      updateProgressBar();
+      updateTimeDisplay();
+      updateTranscriptionDisplay();
+    }
+
+    function changeSpeed() {
+      const select = document.getElementById('speed-select');
+      listeningSpeed = parseFloat(select.value);
+    }
+
+    function changeDifficulty() {
+      const select = document.getElementById('difficulty-select');
+      listeningDifficulty = select.value;
+
+      // Update difficulty display
+      const difficultyLabels = {
+        'A1': 'A1 - Beginner',
+        'A2': 'A2 - Elementary',
+        'B1': 'B1 - Intermediate',
+        'B2': 'B2 - Upper Intermediate',
+        'C1': 'C1 - Advanced',
+        'C2': 'C2 - Proficient'
+      };
+
+      const display = document.getElementById('difficulty-display');
+      if (display) {
+        display.innerText = difficultyLabels[listeningDifficulty] || 'A2 Elementary';
+      }
+    }
+
+    function toggleTranscription() {
+      transcriptionExpanded = !transcriptionExpanded;
+      const wrapper = document.getElementById('transcription-content-wrapper');
+      const chevron = document.getElementById('transcription-chevron');
+
+      if (transcriptionExpanded) {
+        wrapper.classList.remove('hidden');
+        chevron.className = 'fa-solid fa-chevron-up text-slate-500';
+      } else {
+        wrapper.classList.add('hidden');
+        chevron.className = 'fa-solid fa-chevron-down text-slate-500';
       }
     }
 
@@ -850,11 +1987,6 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    function playTargetWordAudio() {
-      const list = userLists[activeListName] || [];
-      const current = list[selectedWordIndex];
-      if (current && current.en) playWordTTS(current.en);
-    }
 
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -865,8 +1997,11 @@
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
+          console.log('Speech recognition started');
           isRecording = true;
-          updateMicUI(true);
+          if (recordingRow !== null) {
+            updateRowMicUI(recordingRow, true);
+          }
         };
 
         recognition.onresult = (event) => {
@@ -874,99 +2009,156 @@
             .map(result => result[0].transcript)
             .join('');
 
-          document.getElementById('user-spoken-text').innerHTML = `<span class="text-slate-900 font-semibold">${transcript}</span>`;
+          console.log('Recognition result:', transcript, 'isFinal:', event.results[0].isFinal);
 
-          if (event.results[0].isFinal) {
-            evaluatePronunciation(transcript);
+          if (event.results[0].isFinal && recordingRow !== null) {
+            console.log('Final result, evaluating pronunciation');
+            evaluateRowPronunciation(recordingRow, transcript);
+            stopRowRecording(recordingRow);
           }
         };
 
-        recognition.onerror = () => {
-          stopRecording();
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          if (event.error === 'not-allowed') {
+            alert('Microphone access denied. Please allow microphone access in your browser settings.');
+          } else if (event.error === 'no-speech') {
+            console.log('No speech detected, stopping...');
+          } else {
+            alert('Speech recognition error: ' + event.error);
+          }
+          if (recordingRow !== null) {
+            stopRowRecording(recordingRow);
+          }
         };
 
         recognition.onend = () => {
-          stopRecording();
+          console.log('Speech recognition ended');
+          isRecording = false;
+          if (recordingRow !== null) {
+            const idx = recordingRow;
+            stopRowRecording(idx);
+          }
         };
       }
     }
 
-    function toggleSpeechRecording() {
+    function toggleRecording(idx) {
+      console.log('toggleRecording called for row:', idx);
+
       if (!recognition) {
-        simulateSpeechRecognition();
+        console.log('No recognition API available');
+        alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
         return;
       }
 
-      if (isRecording) {
-        recognition.stop();
-        stopRecording();
+      if (recordingRow === idx) {
+        // Stop recording
+        console.log('Stopping recording for row:', idx);
+        try {
+          recognition.stop();
+        } catch (e) {
+          console.error('Error stopping recognition:', e);
+        }
+        stopRowRecording(idx);
       } else {
-        resetResultBox();
-        recognition.start();
+        // Start recording
+        console.log('Starting recording for row:', idx);
+        recordingRow = idx;
+        try {
+          recognition.start();
+          updateRowMicUI(idx, true);
+        } catch (e) {
+          console.error('Error starting recognition:', e);
+          if (e.message.includes('already started')) {
+            // Recognition already running, stop it first
+            recognition.stop();
+            setTimeout(() => {
+              recognition.start();
+              updateRowMicUI(idx, true);
+            }, 100);
+          } else {
+            alert('Error starting microphone: ' + e.message);
+            stopRowRecording(idx);
+          }
+        }
       }
     }
 
-    function stopRecording() {
-      isRecording = false;
-      updateMicUI(false);
+    function stopRowRecording(idx) {
+      recordingRow = null;
+      updateRowMicUI(idx, false);
     }
 
-    function updateMicUI(recording) {
-      const btn = document.getElementById('mic-btn');
-      const icon = document.getElementById('mic-icon');
-      const status = document.getElementById('recording-status');
-      const waveform = document.getElementById('waveform-container');
+    function updateRowMicUI(idx, recording) {
+      const btn = document.getElementById(`mic-btn-${idx}`);
+      const icon = document.getElementById(`mic-icon-${idx}`);
 
-      if (recording) {
-        btn.classList.add('recording-pulse', 'bg-red-600');
-        icon.className = 'fa-solid fa-square text-2xl';
-        status.innerText = "Listening... Speak clearly now";
-        status.className = "text-xs font-bold text-red-600 animate-pulse";
-        waveform.classList.remove('hidden');
-      } else {
-        btn.classList.remove('recording-pulse', 'bg-red-600');
-        icon.className = 'fa-solid fa-microphone text-2xl';
-        status.innerText = "Click mic to record student speech";
-        status.className = "text-xs font-semibold text-slate-400";
-        waveform.classList.add('hidden');
+      if (btn && icon) {
+        if (recording) {
+          btn.classList.add('recording-pulse');
+          btn.classList.remove('bg-red-500/20', 'hover:bg-red-500/30');
+          btn.classList.add('bg-red-600', 'hover:bg-red-700');
+          icon.className = 'fa-solid fa-square text-sm';
+        } else {
+          btn.classList.remove('recording-pulse', 'bg-red-600', 'hover:bg-red-700');
+          btn.classList.add('bg-red-500/20', 'hover:bg-red-500/30');
+          icon.className = 'fa-solid fa-microphone text-sm';
+        }
       }
     }
 
-    function resetResultBox() {
-      document.getElementById('user-spoken-text').innerHTML = '<span class="text-slate-400 italic text-xs">Your spoken transcript will appear here...</span>';
-      document.getElementById('score-badge').classList.add('hidden');
-      document.getElementById('feedback-detail').classList.add('hidden');
-    }
-
-    function evaluatePronunciation(spokenText) {
+    function evaluateRowPronunciation(idx, spokenText) {
       const list = userLists[activeListName] || [];
-      const current = list[selectedWordIndex];
+      const current = list[idx];
       if (!current) return;
 
       const target = current.en.toLowerCase().trim();
       const spoken = spokenText.toLowerCase().trim();
 
       const matchScore = calculateSimilarity(target, spoken);
-      const scoreBadge = document.getElementById('score-badge');
-      const feedbackDetail = document.getElementById('feedback-detail');
-      const feedbackMessage = document.getElementById('feedback-message');
 
-      scoreBadge.classList.remove('hidden');
-      feedbackDetail.classList.remove('hidden');
-
-      if (matchScore >= 85) {
-        scoreBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
-        scoreBadge.innerText = `${matchScore}% Match - Excellent!`;
-        feedbackMessage.innerText = "Great pronunciation! Accent and phonemes match target English.";
-      } else if (matchScore >= 55) {
-        scoreBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200";
-        scoreBadge.innerText = `${matchScore}% Match - Good Effort`;
-        feedbackMessage.innerText = "Understood, but try to enunciate clearly.";
-      } else {
-        scoreBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200";
-        scoreBadge.innerText = `${matchScore}% Match - Try Again`;
-        feedbackMessage.innerText = "Pronunciation was not recognized. Listen to native TTS audio and try again.";
+      // Show recorded section
+      const recordedDiv = document.getElementById(`recorded-${idx}`);
+      if (recordedDiv) {
+        recordedDiv.classList.remove('hidden');
       }
+
+      // Update transcript display
+      const transcriptEl = document.getElementById(`transcript-${idx}`);
+      if (transcriptEl) {
+        transcriptEl.innerText = spokenText;
+      }
+
+      // Update score display (shown next to recorded text)
+      const scoreEl = document.getElementById(`score-${idx}`);
+      if (scoreEl) {
+        if (matchScore === 100) {
+          scoreEl.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500 whitespace-nowrap";
+          scoreEl.innerText = `${matchScore}%`;
+        } else if (matchScore >= 85) {
+          scoreEl.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500 whitespace-nowrap";
+          scoreEl.innerText = `${matchScore}%`;
+        } else if (matchScore >= 55) {
+          scoreEl.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500 whitespace-nowrap";
+          scoreEl.innerText = `${matchScore}%`;
+        } else {
+          scoreEl.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500 whitespace-nowrap";
+          scoreEl.innerText = `${matchScore}%`;
+        }
+      }
+    }
+
+    function simulateRecording(idx) {
+      updateRowMicUI(idx, true);
+      setTimeout(() => {
+        const list = userLists[activeListName] || [];
+        const current = list[idx];
+        if (current) {
+          evaluateRowPronunciation(idx, current.en);
+        }
+        stopRowRecording(idx);
+      }, 1800);
     }
 
     function calculateSimilarity(str1, str2) {
@@ -989,21 +2181,31 @@
       return Math.max(0, Math.round((1 - distance / maxLength) * 100));
     }
 
-    function simulateSpeechRecognition() {
-      updateMicUI(true);
-      setTimeout(() => {
-        const list = userLists[activeListName] || [];
-        const current = list[selectedWordIndex];
-        if (current) {
-          document.getElementById('user-spoken-text').innerHTML = `<span class="text-slate-900 font-semibold">${current.en}</span>`;
-          evaluatePronunciation(current.en);
-        }
-        stopRecording();
-      }, 1800);
-    }
-
     function updateSelectedVoice() {
       // Voice selection is applied in playWordTTS
+    }
+
+    function toggleShowAllEnglish() {
+      showAllEnglish = !showAllEnglish;
+      rowVisibility = {}; // Reset individual overrides
+
+      const btn = document.getElementById('show-hide-btn');
+      if (showAllEnglish) {
+        btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i><span class="hidden sm:inline">Hide English</span><span class="sm:hidden">Hide</span>';
+        btn.className = 'px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-600';
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-eye"></i><span class="hidden sm:inline">Show English</span><span class="sm:hidden">Show</span>';
+        btn.className = 'px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600';
+      }
+
+      renderVocabTable();
+    }
+
+    function toggleRowVisibility(idx) {
+      const rowKey = `${activeListName}-${idx}`;
+      const currentState = rowVisibility[rowKey] !== undefined ? rowVisibility[rowKey] : showAllEnglish;
+      rowVisibility[rowKey] = !currentState;
+      renderVocabTable();
     }
 
     function escapeHtml(text) {
