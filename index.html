@@ -1619,85 +1619,192 @@
       }
     }
 
+    // Helper function to add correct article (a/an)
+    function addArticle(word) {
+      const vowels = ['a', 'e', 'i', 'o', 'u'];
+      const firstLetter = word.toLowerCase().charAt(0);
+      return vowels.includes(firstLetter) ? `an ${word}` : `a ${word}`;
+    }
+
+    // Helper to pick random item from array
+    function randomPick(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    // Helper to shuffle array
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
     function createTextFromWords(words, difficulty) {
       if (words.length === 0) return '';
+
+      // Shuffle words for variety each time
+      const shuffledWords = shuffleArray(words);
 
       // Create a cohesive text that includes all vocabulary words
       const templates = {
         'A1': (words) => {
-          let text = 'This is a simple story. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `I have a ${word}. `;
-            else if (i === 1) text += `I see the ${word}. `;
-            else if (i === 2) text += `I need a ${word}. `;
-            else text += `There is a ${word}. `;
+          const intros = ['This is a simple story. ', 'Let me tell you something. ', 'Here is a story. '];
+          const endings = ['It is very nice.', 'That is the end.', 'I like this story.'];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `I have ${addArticle(w)}. `,
+            w => `I see the ${w}. `,
+            w => `I need ${addArticle(w)}. `,
+            w => `There is ${addArticle(w)}. `,
+            w => `I like the ${w}. `,
+            w => `Look at the ${w}. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'It is very nice.';
+          text += randomPick(endings);
           return text;
         },
         'A2': (words) => {
-          let text = 'Let me tell you about some things. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `First, we have the ${word}. `;
-            else if (i === 1) text += `You also need a ${word}. `;
-            else if (i % 2 === 0) text += `Don't forget the ${word}. `;
-            else text += `Remember to bring your ${word}. `;
+          const intros = ['Let me tell you about some things. ', 'Here are important items. ', 'I will explain some words. '];
+          const endings = ['Everything is important.', 'These things are useful.', 'Remember all of these.'];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `First, we have the ${w}. `,
+            w => `You also need ${addArticle(w)}. `,
+            w => `Don't forget the ${w}. `,
+            w => `Remember to bring your ${w}. `,
+            w => `It's important to have ${addArticle(w)}. `,
+            w => `You should know about the ${w}. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'Everything is important.';
+          text += randomPick(endings);
           return text;
         },
         'B1': (words) => {
-          let text = 'Here are some important things to know. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `You should always have your ${word} ready. `;
-            else if (i === 1) text += `Make sure you understand what a ${word} is. `;
-            else if (i % 3 === 0) text += `Pay attention to the ${word} as well. `;
-            else if (i % 3 === 1) text += `The ${word} plays a key role. `;
-            else text += `Consider the importance of the ${word}. `;
+          const intros = [
+            'Here are some important things to know. ',
+            'Let me explain several concepts. ',
+            'Understanding these items is essential. '
+          ];
+          const endings = [
+            'Following these guidelines will help you succeed.',
+            'These concepts are fundamental.',
+            'Remember to apply what you have learned.'
+          ];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `You should always have your ${w} ready. `,
+            w => `Make sure you understand what ${addArticle(w)} is. `,
+            w => `Pay attention to the ${w} as well. `,
+            w => `The ${w} plays a key role. `,
+            w => `Consider the importance of the ${w}. `,
+            w => `Never overlook the ${w}. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'Following these guidelines will help you succeed.';
+          text += randomPick(endings);
           return text;
         },
         'B2': (words) => {
-          let text = 'Understanding these concepts requires careful attention. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `Essential items include your ${word}. `;
-            else if (i === 1) text += `The ${word} serves an important function. `;
-            else if (i % 3 === 0) text += `One must also consider the ${word}. `;
-            else if (i % 3 === 1) text += `The significance of the ${word} should not be underestimated. `;
-            else text += `Furthermore, the ${word} plays a crucial role. `;
+          const intros = [
+            'Understanding these concepts requires careful attention. ',
+            'Let us examine several important elements. ',
+            'These fundamental concepts deserve consideration. '
+          ];
+          const endings = [
+            'These elements combine to create a comprehensive understanding.',
+            'Such knowledge proves invaluable in practice.',
+            'Mastering these concepts enhances overall competence.'
+          ];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `Essential items include the ${w}. `,
+            w => `The ${w} serves an important function. `,
+            w => `One must also consider the ${w}. `,
+            w => `The significance of the ${w} should not be underestimated. `,
+            w => `Furthermore, the ${w} plays a crucial role. `,
+            w => `Particular attention should be paid to the ${w}. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'These elements combine to create a comprehensive understanding.';
+          text += randomPick(endings);
           return text;
         },
         'C1': (words) => {
-          let text = 'A thorough examination of these concepts reveals their complexity. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `Fundamental considerations include the ${word}. `;
-            else if (i === 1) text += `Moreover, the ${word} demonstrates particular significance. `;
-            else if (i % 3 === 0) text += `The multifaceted nature of the ${word} warrants careful analysis. `;
-            else if (i % 3 === 1) text += `One cannot overlook the intricate relationship involving the ${word}. `;
-            else text += `Additionally, the ${word} manifests in various contextual frameworks. `;
+          const intros = [
+            'A thorough examination of these concepts reveals their complexity. ',
+            'Comprehensive analysis demonstrates the interconnected nature of these elements. ',
+            'Sophisticated understanding requires meticulous attention to detail. '
+          ];
+          const endings = [
+            'Such comprehensive understanding facilitates sophisticated application.',
+            'These insights contribute to advanced mastery.',
+            'Profound comprehension emerges through systematic study.'
+          ];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `Fundamental considerations include the ${w}. `,
+            w => `Moreover, the ${w} demonstrates particular significance. `,
+            w => `The multifaceted nature of the ${w} warrants careful analysis. `,
+            w => `One cannot overlook the intricate relationship involving the ${w}. `,
+            w => `Additionally, the ${w} manifests in various contextual frameworks. `,
+            w => `The nuanced implications of the ${w} require thoughtful examination. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'Such comprehensive understanding facilitates sophisticated application.';
+          text += randomPick(endings);
           return text;
         },
         'C2': (words) => {
-          let text = 'A meticulous investigation into these sophisticated concepts necessitates rigorous analysis. ';
-          words.forEach((word, i) => {
-            if (i === 0) text += `Paramount among these considerations is the ${word}. `;
-            else if (i === 1) text += `The epistemological significance of the ${word} transcends conventional understanding. `;
-            else if (i % 3 === 0) text += `Furthermore, the ${word} epitomizes contemporary theoretical frameworks. `;
-            else if (i % 3 === 1) text += `The nuanced interplay involving the ${word} demands scholarly scrutiny. `;
-            else text += `The paradigmatic implications of the ${word} resonate throughout this domain. `;
+          const intros = [
+            'A meticulous investigation into these sophisticated concepts necessitates rigorous analysis. ',
+            'Scholarly discourse demands comprehensive engagement with multifaceted theoretical constructs. ',
+            'Erudite understanding emerges through systematic examination of complex paradigms. '
+          ];
+          const endings = [
+            'Such erudite comprehension exemplifies the zenith of intellectual discourse.',
+            'This sophisticated framework epitomizes contemporary analytical rigor.',
+            'Profound mastery manifests through sustained scholarly engagement.'
+          ];
+
+          let text = randomPick(intros);
+          const patterns = [
+            w => `Paramount among these considerations is the ${w}. `,
+            w => `The epistemological significance of the ${w} transcends conventional understanding. `,
+            w => `Furthermore, the ${w} epitomizes contemporary theoretical frameworks. `,
+            w => `The nuanced interplay involving the ${w} demands scholarly scrutiny. `,
+            w => `The paradigmatic implications of the ${w} resonate throughout this domain. `,
+            w => `Sophisticated engagement with the ${w} reveals profound complexity. `
+          ];
+
+          words.forEach(word => {
+            text += randomPick(patterns)(word);
           });
-          text += 'Such erudite comprehension exemplifies the zenith of intellectual discourse.';
+          text += randomPick(endings);
           return text;
         }
       };
 
       const template = templates[difficulty] || templates['A2'];
-      return template(words);
+      return template(shuffledWords);
     }
 
     function toggleListeningMode() {
