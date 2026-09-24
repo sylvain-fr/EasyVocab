@@ -1620,25 +1620,79 @@
     }
 
     function createTextFromWords(words, difficulty) {
+      if (words.length === 0) return '';
+
       // Create a cohesive text that includes all vocabulary words
       const templates = {
         'A1': (words) => {
-          return `This is a story about travel. You need a ${words[0] || 'ticket'}. You go to the ${words[1] || 'airport'}. You see the ${words[2] || 'gate'}. ${words.slice(3).map(w => `You also see a ${w}.`).join(' ')} It is very busy. You are happy.`;
+          let text = 'This is a simple story. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `I have a ${word}. `;
+            else if (i === 1) text += `I see the ${word}. `;
+            else if (i === 2) text += `I need a ${word}. `;
+            else text += `There is a ${word}. `;
+          });
+          text += 'It is very nice.';
+          return text;
         },
         'A2': (words) => {
-          return `When you travel, you need several things. First, you must have your ${words[0] || 'documents'}. At the airport, you will find the ${words[1] || 'check-in desk'}. ${words.slice(2).map(w => `Don't forget about the ${w}.`).join(' ')} Everything is organized to help travelers have a smooth journey.`;
+          let text = 'Let me tell you about some things. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `First, we have the ${word}. `;
+            else if (i === 1) text += `You also need a ${word}. `;
+            else if (i % 2 === 0) text += `Don't forget the ${word}. `;
+            else text += `Remember to bring your ${word}. `;
+          });
+          text += 'Everything is important.';
+          return text;
         },
         'B1': (words) => {
-          return `Traveling internationally requires careful preparation. You should always carry your ${words[0] || 'passport'} and ${words[1] || 'tickets'}. When you arrive at the airport, locate the ${words[2] || 'terminal'}. ${words.slice(3).map(w => `Pay attention to the ${w} as well.`).join(' ')} Following these steps will ensure your trip goes smoothly and without complications.`;
+          let text = 'Here are some important things to know. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `You should always have your ${word} ready. `;
+            else if (i === 1) text += `Make sure you understand what a ${word} is. `;
+            else if (i % 3 === 0) text += `Pay attention to the ${word} as well. `;
+            else if (i % 3 === 1) text += `The ${word} plays a key role. `;
+            else text += `Consider the importance of the ${word}. `;
+          });
+          text += 'Following these guidelines will help you succeed.';
+          return text;
         },
         'B2': (words) => {
-          return `International travel demands meticulous planning and organization. Essential items include your ${words[0] || 'identification'}, ${words[1] || 'travel documents'}, and confirmation details. Upon arrival, you'll need to navigate through the ${words[2] || 'complex'}. ${words.slice(3).map(w => `The ${w} plays an important role in the process.`).join(' ')} Understanding these procedures will facilitate a seamless travel experience.`;
+          let text = 'Understanding these concepts requires careful attention. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `Essential items include your ${word}. `;
+            else if (i === 1) text += `The ${word} serves an important function. `;
+            else if (i % 3 === 0) text += `One must also consider the ${word}. `;
+            else if (i % 3 === 1) text += `The significance of the ${word} should not be underestimated. `;
+            else text += `Furthermore, the ${word} plays a crucial role. `;
+          });
+          text += 'These elements combine to create a comprehensive understanding.';
+          return text;
         },
         'C1': (words) => {
-          return `Embarking on international journeys necessitates comprehensive preparation and strategic planning. Travelers must ensure they possess requisite documentation such as ${words[0] || 'credentials'} and ${words[1] || 'authorization'}. Upon reaching the ${words[2] || 'facility'}, various procedural requirements await. ${words.slice(3).map(w => `The significance of the ${w} cannot be overstated in this context.`).join(' ')} Adhering to these protocols guarantees an efficient and unencumbered travel experience.`;
+          let text = 'A thorough examination of these concepts reveals their complexity. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `Fundamental considerations include the ${word}. `;
+            else if (i === 1) text += `Moreover, the ${word} demonstrates particular significance. `;
+            else if (i % 3 === 0) text += `The multifaceted nature of the ${word} warrants careful analysis. `;
+            else if (i % 3 === 1) text += `One cannot overlook the intricate relationship involving the ${word}. `;
+            else text += `Additionally, the ${word} manifests in various contextual frameworks. `;
+          });
+          text += 'Such comprehensive understanding facilitates sophisticated application.';
+          return text;
         },
         'C2': (words) => {
-          return `Undertaking transcontinental expeditions demands scrupulous attention to multifaceted logistical considerations. Sophisticated travelers invariably ensure comprehensive documentation, including ${words[0] || 'accreditation'} and ${words[1] || 'verification instruments'}. Navigating through ${words[2] || 'infrastructural complexes'} requires both perspicacity and methodical adherence to established protocols. ${words.slice(3).map(w => `The instrumental nature of the ${w} manifests throughout the procedural continuum.`).join(' ')} Such thoroughness epitomizes the quintessential approach to contemporary international mobility.`;
+          let text = 'A meticulous investigation into these sophisticated concepts necessitates rigorous analysis. ';
+          words.forEach((word, i) => {
+            if (i === 0) text += `Paramount among these considerations is the ${word}. `;
+            else if (i === 1) text += `The epistemological significance of the ${word} transcends conventional understanding. `;
+            else if (i % 3 === 0) text += `Furthermore, the ${word} epitomizes contemporary theoretical frameworks. `;
+            else if (i % 3 === 1) text += `The nuanced interplay involving the ${word} demands scholarly scrutiny. `;
+            else text += `The paradigmatic implications of the ${word} resonate throughout this domain. `;
+          });
+          text += 'Such erudite comprehension exemplifies the zenith of intellectual discourse.';
+          return text;
         }
       };
 
