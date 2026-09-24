@@ -1729,8 +1729,11 @@ Create a coherent 8-12 sentence story using ALL these words.`;
           if (response.ok) {
             const data = await response.json();
             const generatedText = data.choices[0].message.content.trim();
-            console.log('Generated with OpenAI');
+            console.log('✅ Generated with OpenAI API');
             return generatedText;
+          } else {
+            const errorData = await response.json();
+            console.error('OpenAI API Error:', response.status, errorData);
           }
         }
 
@@ -1758,13 +1761,25 @@ Create a coherent 8-12 sentence story using ALL these words.`;
 
           if (response.ok) {
             const data = await response.json();
-            const generatedText = data.candidates[0].content.parts[0].text.trim();
-            console.log('Generated with Gemini');
-            return generatedText;
+            console.log('Gemini API Response:', data);
+
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+              const generatedText = data.candidates[0].content.parts[0].text.trim();
+              console.log('✅ Generated with Gemini API');
+              return generatedText;
+            } else {
+              console.error('Unexpected Gemini response format:', data);
+              throw new Error('Invalid Gemini response');
+            }
+          } else {
+            const errorData = await response.json();
+            console.error('Gemini API Error:', response.status, errorData);
+            throw new Error(`Gemini API failed: ${response.status}`);
           }
         }
 
         // No API key configured
+        console.warn('⚠️ No AI API key configured. Using template fallback.');
         throw new Error('No API key configured');
 
       } catch (error) {
