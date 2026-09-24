@@ -738,6 +738,9 @@
       // Load user's vocabulary lists from Supabase
       await loadUserLists()
 
+      // Load user preferences (including API keys)
+      await loadUserPreferences()
+
       // Render UI
       renderListTabs()
       renderVocabTable()
@@ -2752,12 +2755,63 @@ Create a coherent 8-12 sentence story using ALL these words.`;
     }
 
     // =========================================================================
+    // USER PREFERENCES (API KEYS, ETC.)
+    // =========================================================================
+
+    async function loadUserPreferences() {
+      if (!currentUser) return;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_preferences')
+          .select('openai_api_key, gemini_api_key')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+
+        if (data && !error) {
+          // Load API keys to localStorage for quick access
+          if (data.openai_api_key) {
+            localStorage.setItem('openai_api_key', data.openai_api_key);
+          }
+          if (data.gemini_api_key) {
+            localStorage.setItem('gemini_api_key', data.gemini_api_key);
+          }
+          console.log('✅ User preferences loaded from database');
+        }
+      } catch (error) {
+        console.error('Error loading user preferences:', error);
+      }
+    }
+
+    // =========================================================================
     // AI SETTINGS MODAL
     // =========================================================================
 
-    function openAISettings() {
-      const currentOpenAI = localStorage.getItem('openai_api_key') || '';
-      const currentGemini = localStorage.getItem('gemini_api_key') || '';
+    async function openAISettings() {
+      let currentOpenAI = localStorage.getItem('openai_api_key') || '';
+      let currentGemini = localStorage.getItem('gemini_api_key') || '';
+
+      // Load from database if available
+      if (currentUser) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('user_preferences')
+            .select('openai_api_key, gemini_api_key')
+            .eq('user_id', currentUser.id)
+            .single();
+
+          if (data && !error) {
+            currentOpenAI = data.openai_api_key || '';
+            currentGemini = data.gemini_api_key || '';
+
+            // Update localStorage cache
+            if (currentOpenAI) localStorage.setItem('openai_api_key', currentOpenAI);
+            if (currentGemini) localStorage.setItem('gemini_api_key', currentGemini);
+          }
+        } catch (error) {
+          console.error('Error loading AI settings:', error);
+        }
+      }
 
       const modal = `
         <div id="ai-settings-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onclick="closeAISettings(event)">
@@ -2832,24 +2886,53 @@ Create a coherent 8-12 sentence story using ALL these words.`;
       if (modal) modal.remove();
     }
 
-    function saveAISettings() {
+    async function saveAISettings() {
       const openaiKey = document.getElementById('openai-key-input').value.trim();
       const geminiKey = document.getElementById('gemini-key-input').value.trim();
 
-      if (openaiKey) {
-        localStorage.setItem('openai_api_key', openaiKey);
-      } else {
-        localStorage.removeItem('openai_api_key');
+      if (!currentUser) {
+        alert('You must be logged in to save settings');
+        return;
       }
 
-      if (geminiKey) {
-        localStorage.setItem('gemini_api_key', geminiKey);
-      } else {
-        localStorage.removeItem('gemini_api_key');
-      }
+      try {
+        // Save to Supabase database
+        const { error } = await supabaseClient
+          .from('user_preferences')
+          .upsert({
+            user_id: currentUser.id,
+            openai_api_key: openaiKey || null,
+            gemini_api_key: geminiKey || null,
+            updated_at: new Date()
+          }, {
+            onConflict: 'user_id'
+          });
 
-      closeAISettings();
-      alert('AI settings saved! Now "Generate Text" will use AI for much better results.');
+        if (error) {
+          console.error('Error saving AI settings:', error);
+          alert('Error saving settings: ' + error.message);
+          return;
+        }
+
+        // Also cache in localStorage for faster access
+        if (openaiKey) {
+          localStorage.setItem('openai_api_key', openaiKey);
+        } else {
+          localStorage.removeItem('openai_api_key');
+        }
+
+        if (geminiKey) {
+          localStorage.setItem('gemini_api_key', geminiKey);
+        } else {
+          localStorage.removeItem('gemini_api_key');
+        }
+
+        closeAISettings();
+        alert('✅ AI settings saved to your account! Available on all your devices.');
+      } catch (error) {
+        console.error('Error saving AI settings:', error);
+        alert('Error saving settings. Please try again.');
+      }
     }
   </script>
 </body>
