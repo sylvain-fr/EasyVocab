@@ -1591,17 +1591,19 @@
       const text = createTextFromWords(words, listeningDifficulty);
       currentListeningText = text;
 
+      // Split into sentences for recording
+      textSentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
+      textSentences = textSentences.map(s => s.trim()).filter(s => s.length > 0);
+      sentenceRecordings = {}; // Clear previous recordings
+
       // Update the textarea
       const textarea = document.getElementById('listening-text-area');
       if (textarea) {
         textarea.value = text;
       }
 
-      // Update transcription content
-      const transcriptionContent = document.getElementById('transcription-content');
-      if (transcriptionContent) {
-        transcriptionContent.innerText = text;
-      }
+      // Update transcription display with sentences
+      renderSentencesWithRecordButtons();
 
       // Update word count
       const wordCount = document.getElementById('word-usage-count');
@@ -1807,6 +1809,12 @@
       // Split text into words for progressive reveal
       textWords = text.split(/\s+/).filter(w => w.length > 0);
 
+      // Split into sentences
+      if (textSentences.length === 0) {
+        textSentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
+        textSentences = textSentences.map(s => s.trim()).filter(s => s.length > 0);
+      }
+
       // Rough estimation: average speaking rate is about 150 words per minute
       const wordCount = textWords.length;
       const estimatedMinutes = (wordCount / 150) / listeningSpeed;
@@ -1828,21 +1836,135 @@
       }, 100);
     }
 
+    // Split text into sentences
+    let textSentences = [];
+    let sentenceRecordings = {}; // Store recordings per sentence
+
     function updateTranscriptionDisplay() {
       const transcriptionContent = document.getElementById('transcription-content');
-      if (!transcriptionContent || textWords.length === 0) return;
+      if (!transcriptionContent) return;
 
-      // Calculate how many words should be visible based on progress
-      const progress = audioDuration > 0 ? audioCurrentTime / audioDuration : 0;
-      const visibleWordCount = Math.floor(progress * textWords.length);
+      // If we have sentences, display them one per line with record buttons
+      if (textSentences.length > 0) {
+        renderSentencesWithRecordButtons();
+      } else if (textWords.length > 0) {
+        // Fallback to word-by-word progressive display
+        const progress = audioDuration > 0 ? audioCurrentTime / audioDuration : 0;
+        const visibleWordCount = Math.floor(progress * textWords.length);
 
-      // Build HTML with only visible words (spoken words)
-      let html = '';
-      for (let i = 0; i < visibleWordCount; i++) {
-        html += `${textWords[i]} `;
+        let html = '';
+        for (let i = 0; i < visibleWordCount; i++) {
+          html += `${textWords[i]} `;
+        }
+
+        transcriptionContent.innerHTML = html.trim();
+      }
+    }
+
+    function renderSentencesWithRecordButtons() {
+      const transcriptionContent = document.getElementById('transcription-content');
+      if (!transcriptionContent) return;
+
+      let html = '<div class="space-y-4">';
+
+      textSentences.forEach((sentence, idx) => {
+        const recording = sentenceRecordings[idx];
+        const hasRecording = recording && recording.transcript;
+
+        html += `
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-slate-900/50 border border-slate-700">
+            <div class="flex-1">
+              <p class="text-slate-200 leading-relaxed mb-2">${escapeHtml(sentence)}</p>
+              ${hasRecording ? `
+                <div class="flex items-center gap-2 text-xs mt-2">
+                  <span class="text-slate-500">Recorded:</span>
+                  <span class="text-slate-400 italic">${escapeHtml(recording.transcript)}</span>
+                  <span class="font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${getScoreClass(recording.score)}">
+                    ${recording.score}%
+                  </span>
+                </div>
+              ` : ''}
+            </div>
+            <button
+              onclick="toggleSentenceRecording(${idx})"
+              id="sentence-mic-${idx}"
+              class="flex-shrink-0 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+              title="Record this sentence">
+              <i class="fa-solid fa-microphone text-sm" id="sentence-mic-icon-${idx}"></i>
+            </button>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      transcriptionContent.innerHTML = html;
+    }
+
+    function getScoreClass(score) {
+      if (score === 100) return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500';
+      if (score >= 85) return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500';
+      if (score >= 55) return 'bg-amber-500/20 text-amber-400 border border-amber-500';
+      return 'bg-red-500/20 text-red-400 border border-red-500';
+    }
+
+    let recordingSentenceIndex = null;
+
+    function toggleSentenceRecording(idx) {
+      if (!recognition) {
+        alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+        return;
       }
 
-      transcriptionContent.innerHTML = html.trim();
+      if (recordingSentenceIndex === idx) {
+        // Stop recording
+        recognition.stop();
+        stopSentenceRecording(idx);
+      } else {
+        // Start recording this sentence
+        recordingSentenceIndex = idx;
+        recognition.start();
+      }
+    }
+
+    function updateSentenceMicUI(idx, recording) {
+      const btn = document.getElementById(`sentence-mic-${idx}`);
+      const icon = document.getElementById(`sentence-mic-icon-${idx}`);
+
+      if (btn && icon) {
+        if (recording) {
+          btn.classList.add('recording-pulse', 'bg-red-600', 'hover:bg-red-700');
+          btn.classList.remove('bg-red-500/20', 'hover:bg-red-500/30');
+          icon.className = 'fa-solid fa-square text-sm';
+        } else {
+          btn.classList.remove('recording-pulse', 'bg-red-600', 'hover:bg-red-700');
+          btn.classList.add('bg-red-500/20', 'hover:bg-red-500/30');
+          icon.className = 'fa-solid fa-microphone text-sm';
+        }
+      }
+    }
+
+    function stopSentenceRecording(idx) {
+      recordingSentenceIndex = null;
+      updateSentenceMicUI(idx, false);
+    }
+
+    function evaluateSentencePronunciation(idx, spokenText) {
+      const targetSentence = textSentences[idx];
+      if (!targetSentence) return;
+
+      const target = targetSentence.toLowerCase().trim();
+      const spoken = spokenText.toLowerCase().trim();
+
+      const matchScore = calculateSimilarity(target, spoken);
+
+      // Store the recording
+      sentenceRecordings[idx] = {
+        transcript: spokenText,
+        score: matchScore
+      };
+
+      // Re-render to show the recording
+      renderSentencesWithRecordButtons();
     }
 
     function stopProgressTracking() {
@@ -2026,6 +2148,9 @@
           if (recordingRow !== null) {
             updateRowMicUI(recordingRow, true);
           }
+          if (recordingSentenceIndex !== null) {
+            updateSentenceMicUI(recordingSentenceIndex, true);
+          }
         };
 
         recognition.onresult = (event) => {
@@ -2033,8 +2158,12 @@
             .map(result => result[0].transcript)
             .join('');
 
-          if (event.results[0].isFinal && recordingRow !== null) {
-            evaluateRowPronunciation(recordingRow, transcript);
+          if (event.results[0].isFinal) {
+            if (recordingRow !== null) {
+              evaluateRowPronunciation(recordingRow, transcript);
+            } else if (recordingSentenceIndex !== null) {
+              evaluateSentencePronunciation(recordingSentenceIndex, transcript);
+            }
           }
         };
 
@@ -2042,11 +2171,17 @@
           if (recordingRow !== null) {
             stopRowRecording(recordingRow);
           }
+          if (recordingSentenceIndex !== null) {
+            stopSentenceRecording(recordingSentenceIndex);
+          }
         };
 
         recognition.onend = () => {
           if (recordingRow !== null) {
             stopRowRecording(recordingRow);
+          }
+          if (recordingSentenceIndex !== null) {
+            stopSentenceRecording(recordingSentenceIndex);
           }
         };
       }
