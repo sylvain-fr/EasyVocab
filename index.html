@@ -152,18 +152,16 @@
   <!-- Top Navigation Header -->
   <header class="bg-slate-900 border-b border-slate-700 sticky top-0 z-30 shadow-lg">
     <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-      <div class="flex justify-between items-center gap-2 border-b border-slate-800 py-2">
+      <!-- Top Row: Burger + Tabs -->
+      <div class="flex justify-between items-center gap-2 py-2">
         <div class="flex items-center">
           <!-- Burger Menu Button -->
           <button onclick="toggleListManager()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
             <i class="fa-solid fa-bars text-slate-200 text-lg sm:text-xl"></i>
           </button>
         </div>
-
-        <!-- Contextual Action Buttons (changes per tab) -->
-        <div class="flex-1 flex justify-center overflow-x-auto">
-          <!-- Edit Tab Actions -->
-          <div id="actions-manage" class="contextual-actions flex gap-1 sm:gap-2 flex-nowrap">
+          <!-- Words Tab Actions -->
+          <div id="actions-manage" class="contextual-actions flex gap-1 sm:gap-2 items-center flex-nowrap">
             <button onclick="toggleShowAllEnglish()" id="show-hide-btn" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-600">
               <i class="fa-solid fa-eye-slash"></i>
               <span class="hidden sm:inline">Hide English</span>
@@ -229,8 +227,17 @@
               <option value="0.75">75%</option>
               <option value="1.0" selected>100%</option>
             </select>
+
+            <!-- Voice Selector -->
+            <select id="tts-voice-select" onchange="updateSelectedVoice()" class="listening-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600">
+              <!-- Populated via speech API -->
+            </select>
           </div>
         </div>
+        </div>
+      </div>
+    </div>
+  </header>
 
         <!-- Tab Navigation Buttons -->
         <div class="flex gap-2 items-center">
@@ -248,14 +255,9 @@
         </div>
       </div>
 
-      <!-- Dynamic Tab Description -->
-      <div class="py-2">
-        <p id="tab-description" class="text-xs sm:text-sm text-slate-400 text-center">
-          Manage your vocabulary lists, edit words, and practice pronunciation
-        </p>
-      </div>
-    </div>
-  </header>
+      <!-- Dedicated Toolbar for Contextual Actions -->
+      <div class="border-t border-slate-800 py-2 overflow-x-auto">
+        <div class="flex justify-center gap-1 sm:gap-2 flex-nowrap min-w-max px-2">
 
   <!-- Sidebar Overlay (Dark Background) -->
   <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden transition-opacity" onclick="toggleListManager()"></div>
@@ -297,7 +299,10 @@
 
       <!-- List Selector -->
       <div>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Your Lists (<span id="list-count">3</span>)</h3>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Your Lists (<span id="list-count">3</span>)</h3>
+        <p class="text-xs text-slate-500 mb-3">
+          <span id="word-count">0</span> words in active list
+        </p>
         <div class="flex flex-col space-y-2" id="list-tabs-container">
           <!-- Rendered dynamically -->
         </div>
@@ -315,16 +320,6 @@
 
       <!-- Word Management Table (Full Width) -->
       <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col">
-        <div class="p-3 border-b border-slate-700 bg-slate-800/70 flex justify-between items-center">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Active List Words (<span id="word-count">0</span>)</span>
-          <!-- Voice Selector -->
-          <div class="flex items-center gap-2">
-            <label class="text-xs text-slate-400 font-medium">Voice:</label>
-            <select id="tts-voice-select" onchange="updateSelectedVoice()" class="text-xs bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
-              <!-- Populated via speech API -->
-            </select>
-          </div>
-        </div>
 
         <!-- Vocabulary Table -->
         <div class="overflow-y-auto flex-grow custom-scrollbar">
