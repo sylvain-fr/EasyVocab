@@ -446,12 +446,17 @@
         </div>
 
         <!-- Progressive Transcription (During Playback) -->
-        <div id="progressive-transcription" class="listening-mode-only mt-6 bg-slate-800/50 rounded-xl border border-slate-700 p-6">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-            <i class="fa-solid fa-closed-captioning mr-2"></i>Live Transcription
-          </h4>
-          <div id="progressive-content" class="text-sm text-slate-300 leading-relaxed">
-            <!-- Words appear here as audio plays -->
+        <div id="progressive-transcription" class="listening-mode-only mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+          <button onclick="toggleProgressivePanel()" class="w-full px-6 py-3 flex items-center justify-between hover:bg-slate-800/80 transition-colors">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-closed-captioning mr-2"></i>Live Transcription
+            </h4>
+            <i class="fa-solid fa-chevron-down text-slate-500" id="progressive-chevron"></i>
+          </button>
+          <div id="progressive-content-wrapper" class="hidden px-6 pb-6">
+            <div id="progressive-content" class="text-sm text-slate-300 leading-relaxed pt-3 border-t border-slate-700">
+              <!-- Words appear here as audio plays -->
+            </div>
           </div>
         </div>
 
@@ -1416,6 +1421,11 @@
 
       if (!list) return
 
+      // Get the highest position number to add at end
+      const currentList = userLists[activeListName] || []
+      const maxPosition = currentList.length > 0 ? Math.max(...currentList.map((_, i) => i)) : -1
+      const newPosition = maxPosition + 1
+
       // Create new item in database
       const { data: newItem, error: insertError } = await supabaseClient
         .from('vocabulary_items')
@@ -1424,7 +1434,7 @@
           en: '',
           fr: '',
           sentence: '',
-          position: 0 // Will be at top
+          position: newPosition // Add at end
         })
         .select()
         .single()
@@ -1441,22 +1451,23 @@
         return
       }
 
-      // Add to local state
+      // Add to local state at END
       if (!userLists[activeListName]) userLists[activeListName] = []
-      userLists[activeListName].unshift({
+      userLists[activeListName].push({
         id: newItem.id,
         en: '',
         fr: '',
         sentence: ''
       })
 
-      selectedWordIndex = 0
+      const newRowIndex = userLists[activeListName].length - 1
+      selectedWordIndex = newRowIndex
       renderVocabTable()
       renderPrintableWorksheet()
 
-      // Auto-focus the first French input (new row at index 0)
+      // Auto-focus the first French input of the new row at end
       setTimeout(() => {
-        const firstInput = document.querySelector('[data-row="0"][data-col="0"]')
+        const firstInput = document.querySelector(`[data-row="${newRowIndex}"][data-col="0"]`)
         if (firstInput) firstInput.focus()
       }, 50)
     }
@@ -2048,6 +2059,22 @@
       const display = document.getElementById('difficulty-display');
       if (display) {
         display.innerText = difficultyLabels[listeningDifficulty] || 'A2 Elementary';
+      }
+    }
+
+    let progressiveExpanded = false;
+
+    function toggleProgressivePanel() {
+      progressiveExpanded = !progressiveExpanded;
+      const wrapper = document.getElementById('progressive-content-wrapper');
+      const chevron = document.getElementById('progressive-chevron');
+
+      if (progressiveExpanded) {
+        wrapper.classList.remove('hidden');
+        chevron.className = 'fa-solid fa-chevron-up text-slate-500';
+      } else {
+        wrapper.classList.add('hidden');
+        chevron.className = 'fa-solid fa-chevron-down text-slate-500';
       }
     }
 
