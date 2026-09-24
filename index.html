@@ -1988,6 +1988,21 @@
     }
 
 
+    async function requestMicrophonePermission() {
+      try {
+        // Request microphone access explicitly
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Stop the stream immediately - we just needed permission
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Microphone permission granted');
+        return true;
+      } catch (error) {
+        console.error('Microphone permission denied:', error);
+        alert('Please allow microphone access to use pronunciation practice.\n\nClick the settings icon in your browser address bar and allow microphone access.');
+        return false;
+      }
+    }
+
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -1997,7 +2012,6 @@
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
-          console.log('Speech recognition started');
           isRecording = true;
           if (recordingRow !== null) {
             updateRowMicUI(recordingRow, true);
@@ -2009,79 +2023,38 @@
             .map(result => result[0].transcript)
             .join('');
 
-          console.log('Recognition result:', transcript, 'isFinal:', event.results[0].isFinal);
-
           if (event.results[0].isFinal && recordingRow !== null) {
-            console.log('Final result, evaluating pronunciation');
             evaluateRowPronunciation(recordingRow, transcript);
-            stopRowRecording(recordingRow);
           }
         };
 
-        recognition.onerror = (event) => {
-          console.error('Speech recognition error:', event.error);
-          if (event.error === 'not-allowed') {
-            alert('Microphone access denied. Please allow microphone access in your browser settings.');
-          } else if (event.error === 'no-speech') {
-            console.log('No speech detected, stopping...');
-          } else {
-            alert('Speech recognition error: ' + event.error);
-          }
+        recognition.onerror = () => {
           if (recordingRow !== null) {
             stopRowRecording(recordingRow);
           }
         };
 
         recognition.onend = () => {
-          console.log('Speech recognition ended');
-          isRecording = false;
           if (recordingRow !== null) {
-            const idx = recordingRow;
-            stopRowRecording(idx);
+            stopRowRecording(recordingRow);
           }
         };
       }
     }
 
     function toggleRecording(idx) {
-      console.log('toggleRecording called for row:', idx);
-
       if (!recognition) {
-        console.log('No recognition API available');
-        alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+        console.log('No recognition API - using simulation');
+        simulateRecording(idx);
         return;
       }
 
       if (recordingRow === idx) {
-        // Stop recording
-        console.log('Stopping recording for row:', idx);
-        try {
-          recognition.stop();
-        } catch (e) {
-          console.error('Error stopping recognition:', e);
-        }
+        recognition.stop();
         stopRowRecording(idx);
       } else {
-        // Start recording
-        console.log('Starting recording for row:', idx);
         recordingRow = idx;
-        try {
-          recognition.start();
-          updateRowMicUI(idx, true);
-        } catch (e) {
-          console.error('Error starting recognition:', e);
-          if (e.message.includes('already started')) {
-            // Recognition already running, stop it first
-            recognition.stop();
-            setTimeout(() => {
-              recognition.start();
-              updateRowMicUI(idx, true);
-            }, 100);
-          } else {
-            alert('Error starting microphone: ' + e.message);
-            stopRowRecording(idx);
-          }
-        }
+        recognition.start();
       }
     }
 
