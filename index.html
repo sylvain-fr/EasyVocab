@@ -222,7 +222,7 @@
         </div>
 
         <!-- Right: Print Button (Words view only) -->
-        <button onclick="window.print()" id="print-btn" class="p-2 hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0 text-slate-200" title="Print">
+        <button onclick="printWorksheet()" id="print-btn" class="p-2 hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0 text-slate-200" title="Print">
           <i class="fa-solid fa-print text-lg"></i>
         </button>
       </div>
@@ -1611,6 +1611,15 @@
     // =========================================================================
     // FEATURE 2: A4 PRINTABLE WORKSHEET GENERATION
     // =========================================================================
+
+    function printWorksheet() {
+      // Ensure printable worksheet is rendered before printing
+      renderPrintableWorksheet();
+      // Small delay to ensure rendering completes
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    }
 
     function renderPrintableWorksheet() {
       const list = userLists[activeListName] || [];
