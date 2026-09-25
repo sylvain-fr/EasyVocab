@@ -262,44 +262,77 @@
     <div class="p-6 space-y-6">
       <!-- Sidebar Header -->
       <div class="flex justify-between items-center border-b border-slate-700 pb-4">
-        <h2 class="text-lg font-bold text-slate-100">List Manager</h2>
+        <h2 class="text-lg font-bold text-slate-100">Menu</h2>
         <button onclick="toggleListManager()" class="p-2 hover:bg-slate-800 rounded-lg transition-colors">
           <i class="fa-solid fa-xmark text-slate-300 text-xl"></i>
         </button>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex flex-col gap-2">
-        <button onclick="createNewList()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
-          <i class="fa-solid fa-plus"></i>
-          <span>New List</span>
+      <!-- SECTION 1: LISTENING -->
+      <div class="border-b border-slate-700 pb-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center">
+          <i class="fa-solid fa-headphones mr-2"></i>Listening Practice
+        </h3>
+        <button onclick="switchTab('listening-tab'); toggleListManager();" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
+          <i class="fa-solid fa-play"></i>
+          <span>Start Listening</span>
         </button>
-
-        <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
-          <i class="fa-solid fa-file-import"></i>
-          <span>Import CSV/JSON</span>
-          <input type="file" accept=".csv,.json,.txt" class="hidden" onchange="handleFileUpload(event)">
-        </label>
-
-        <button onclick="exportCurrentList()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
-          <i class="fa-solid fa-file-export"></i>
-          <span>Export</span>
-        </button>
-
-        <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-red-700 transition-all">
-          <i class="fa-solid fa-right-from-bracket"></i>
-          <span>Logout</span>
-        </button>
+        <p class="text-xs text-slate-500 mt-2">
+          Practice listening independently. Select word lists inside.
+        </p>
       </div>
 
-      <!-- List Selector -->
-      <div>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Your Lists (<span id="list-count">3</span>)</h3>
-        <p class="text-xs text-slate-500 mb-3">
+      <!-- SECTION 2: WORD LISTS -->
+      <div class="border-b border-slate-700 pb-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center">
+            <i class="fa-solid fa-book mr-2"></i>Word Lists (<span id="list-count">0</span>)
+          </h3>
+        </div>
+
+        <div class="flex flex-col gap-2 mb-3">
+          <button onclick="createNewList()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all">
+            <i class="fa-solid fa-plus"></i>
+            <span>New List</span>
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-500 mb-2">
           <span id="word-count">0</span> words in active list
         </p>
+
         <div class="flex flex-col space-y-2" id="list-tabs-container">
           <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- SECTION 3: ADMIN -->
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center">
+          <i class="fa-solid fa-gear mr-2"></i>Admin
+        </h3>
+
+        <div class="flex flex-col gap-2">
+          <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
+            <i class="fa-solid fa-file-import"></i>
+            <span>Import CSV/JSON</span>
+            <input type="file" accept=".csv,.json,.txt" class="hidden" onchange="handleFileUpload(event)">
+          </label>
+
+          <button onclick="exportCurrentList()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
+            <i class="fa-solid fa-file-export"></i>
+            <span>Export Active List</span>
+          </button>
+
+          <button onclick="openAISettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-slate-600 transition-all">
+            <i class="fa-solid fa-key"></i>
+            <span>AI Settings</span>
+          </button>
+
+          <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center justify-center space-x-2 border border-red-700 transition-all">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </div>
@@ -388,6 +421,20 @@
     <!-- ========================================================================= -->
     <section id="listening-tab" class="tab-content hidden space-y-6">
 
+      <!-- List Selection Panel -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          <i class="fa-solid fa-list-check mr-2"></i>Select Word Lists for Practice
+        </h3>
+        <div id="listening-list-selector" class="flex flex-wrap gap-2">
+          <!-- Checkboxes rendered dynamically -->
+        </div>
+        <p class="text-xs text-slate-500 mt-3">
+          <i class="fa-solid fa-info-circle mr-1"></i>
+          Select one or more lists. Text will be generated using words from all selected lists.
+        </p>
+      </div>
+
       <!-- Listening Text Container -->
       <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg p-6">
         <div class="mb-4 flex justify-between items-center">
@@ -396,7 +443,7 @@
           </h3>
           <span class="text-xs text-slate-500">
             <i class="fa-solid fa-book-open mr-1"></i>
-            <span id="word-usage-count">0</span> words used from list
+            <span id="word-usage-count">0</span> words from <span id="selected-lists-count">0</span> list(s)
           </span>
         </div>
 
@@ -580,6 +627,7 @@
     let audioInterval = null;
     let transcriptionExpanded = false;
     let textWords = [];
+    let selectedListsForListening = []; // Track which lists are selected for listening practice
 
     // =========================================================================
     // APPLICATION INITIALIZATION
@@ -1135,7 +1183,6 @@
           renderListTabs();
           renderVocabTable();
           renderPrintableWorksheet();
-          generateListeningText();
           toggleListManager(); // Close sidebar after selecting
         };
 
@@ -1145,6 +1192,75 @@
         `;
         container.appendChild(btn);
       });
+
+      // Also render listening list selector
+      renderListeningListSelector();
+    }
+
+    function renderListeningListSelector() {
+      const container = document.getElementById('listening-list-selector');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      // Initialize selectedListsForListening if empty
+      if (selectedListsForListening.length === 0 && Object.keys(userLists).length > 0) {
+        selectedListsForListening = [activeListName]; // Default to active list
+      }
+
+      Object.keys(userLists).forEach(listName => {
+        const isSelected = selectedListsForListening.includes(listName);
+        const wordCount = userLists[listName].length;
+
+        const checkbox = document.createElement('label');
+        checkbox.className = `flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+          isSelected
+            ? 'bg-brand-600/20 border-brand-600 text-brand-200'
+            : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+        }`;
+
+        checkbox.innerHTML = `
+          <input
+            type="checkbox"
+            ${isSelected ? 'checked' : ''}
+            onchange="toggleListeningListSelection('${escapeHtml(listName)}')"
+            class="w-4 h-4 text-brand-600 bg-slate-700 border-slate-600 rounded focus:ring-brand-500 focus:ring-2"
+          />
+          <span class="text-sm font-medium">${escapeHtml(listName)}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">${wordCount}</span>
+        `;
+
+        container.appendChild(checkbox);
+      });
+
+      updateListeningWordCount();
+    }
+
+    function toggleListeningListSelection(listName) {
+      const index = selectedListsForListening.indexOf(listName);
+      if (index > -1) {
+        selectedListsForListening.splice(index, 1);
+      } else {
+        selectedListsForListening.push(listName);
+      }
+
+      // Ensure at least one list is selected
+      if (selectedListsForListening.length === 0) {
+        selectedListsForListening = [Object.keys(userLists)[0]];
+      }
+
+      renderListeningListSelector();
+    }
+
+    function updateListeningWordCount() {
+      const allWords = selectedListsForListening.flatMap(listName => userLists[listName] || []);
+      const uniqueWords = [...new Set(allWords.map(item => item.en))];
+
+      const wordCountEl = document.getElementById('word-usage-count');
+      const listCountEl = document.getElementById('selected-lists-count');
+
+      if (wordCountEl) wordCountEl.textContent = uniqueWords.length;
+      if (listCountEl) listCountEl.textContent = selectedListsForListening.length;
     }
 
     async function createNewList() {
@@ -1592,14 +1708,16 @@
     // =========================================================================
 
     async function generateListeningText() {
-      const list = userLists[activeListName] || [];
-      if (list.length === 0) {
-        alert('Please add words to your active list first.');
+      // Get words from ALL selected lists
+      const allWords = selectedListsForListening.flatMap(listName => userLists[listName] || []);
+
+      if (allWords.length === 0) {
+        alert('Please select at least one list with words.');
         return;
       }
 
-      // Get all English words from the list
-      const words = list.map(item => item.en).filter(w => w && w.trim() !== '');
+      // Get unique English words from all selected lists
+      const uniqueWords = [...new Set(allWords.map(item => item.en).filter(w => w && w.trim() !== ''))];
 
       // Show loading indicator
       const generateBtn = document.querySelector('button[onclick="generateListeningText()"]');
@@ -1611,7 +1729,7 @@
 
       try {
         // Generate a cohesive text using AI based on difficulty level
-        const text = await createTextFromWordsWithAI(words, listeningDifficulty);
+        const text = await createTextFromWordsWithAI(uniqueWords, listeningDifficulty);
         currentListeningText = text;
 
         // Split into sentences for recording
@@ -1628,11 +1746,8 @@
         // Update transcription display with sentences
         renderSentencesWithRecordButtons();
 
-        // Update word count
-        const wordCount = document.getElementById('word-usage-count');
-        if (wordCount) {
-          wordCount.innerText = words.length;
-        }
+        // Update word count display
+        updateListeningWordCount();
       } catch (error) {
         console.error('Error generating text:', error);
         alert('Error generating text. Please try again.');
