@@ -2133,7 +2133,7 @@ Create a coherent 8-12 sentence story using ALL these words.`;
       audioUtterance.rate = listeningSpeed;
 
       const select = document.getElementById('tts-voice-select');
-      if (availableVoices[select.value]) {
+      if (select && availableVoices[select.value]) {
         audioUtterance.voice = availableVoices[select.value];
       }
 
@@ -2498,6 +2498,10 @@ Create a coherent 8-12 sentence story using ALL these words.`;
       if (!('speechSynthesis' in window)) return;
       availableVoices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
       const select = document.getElementById('tts-voice-select');
+
+      // Voice selector is optional now (removed from toolbar)
+      if (!select) return;
+
       select.innerHTML = '';
 
       if (availableVoices.length === 0) {
@@ -2527,7 +2531,7 @@ Create a coherent 8-12 sentence story using ALL these words.`;
       utterance.rate = 0.9;
 
       const select = document.getElementById('tts-voice-select');
-      if (availableVoices[select.value]) {
+      if (select && availableVoices[select.value]) {
         utterance.voice = availableVoices[select.value];
       }
 
