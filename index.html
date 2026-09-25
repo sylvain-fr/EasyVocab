@@ -1736,43 +1736,94 @@
 
     // Generate text using OpenAI API (adapted from Gemini's suggestion)
     async function createTextFromWordsWithAI(words, difficulty) {
-      // CEFR grammar rules (from Gemini's suggestion)
-      const cefrRules = {
-        'A1': 'Present simple, basic nouns/verbs, ultra-short sentences (3-5 words)',
-        'A2': 'Past simple, future with "going to", simple conjunctions (and, but)',
-        'B1': 'Present perfect, basic modals (can, should, must), basic relative clauses',
-        'B2': 'Conditionals (if/would), passive voice, past progressive',
-        'C1': 'Complex clauses, advanced vocabulary, past perfect continuous',
-        'C2': 'Subjunctive, sophisticated discourse markers, nuanced expressions'
+      // CEFR-specific grammar and vocabulary guidelines
+      const cefrGuidelines = {
+        'A1': {
+          grammar: 'Present simple, present continuous, simple imperatives. Basic "to be" and "have". Simple questions with do/does.',
+          vocabulary: 'Common everyday words (food, family, colors, numbers 1-100). Ultra-basic verbs (go, come, eat, drink).',
+          sentences: 'Very short (3-6 words). One idea per sentence. Simple Subject-Verb-Object structure.',
+          length: '6-8 sentences',
+          example: 'I like coffee. The sky is blue. My friend says hello.'
+        },
+        'A2': {
+          grammar: 'Past simple, future with "going to" and "will". Simple conjunctions (and, but, because). Can/could for ability.',
+          vocabulary: 'Everyday situations (travel, shopping, work). Common adjectives and adverbs. Numbers, dates, time.',
+          sentences: 'Short to medium (5-10 words). Can link 2 simple ideas. Basic descriptions.',
+          length: '8-10 sentences',
+          example: 'Yesterday I went to a café. I ordered a coffee because I was tired. The weather was nice and sunny.'
+        },
+        'B1': {
+          grammar: 'Present perfect, past continuous, future forms. Modal verbs (should, must, might). Basic relative clauses (who, which, that).',
+          vocabulary: 'Abstract concepts (opinion, experience). Common phrasal verbs. Work and leisure topics.',
+          sentences: 'Medium length (8-15 words). Can express reasons and results. Some complex sentences.',
+          length: '10-12 sentences',
+          example: 'I have been working here for three years. The job can be challenging, but I enjoy meeting new people.'
+        },
+        'B2': {
+          grammar: 'All past tenses, conditionals (type 1 & 2), passive voice. Reported speech. Complex conjunctions (although, unless, whereas).',
+          vocabulary: 'More abstract language. Idiomatic expressions. Formal and informal registers.',
+          sentences: 'Longer, more complex (12-20 words). Multiple clauses. Nuanced expression.',
+          length: '12-15 sentences',
+          example: 'Although it was raining, we decided to go ahead with our plans. The experience taught me that perseverance is important.'
+        },
+        'C1': {
+          grammar: 'Advanced tenses (past perfect continuous), sophisticated conditionals, subjunctive mood. Complex passives.',
+          vocabulary: 'Sophisticated, precise word choice. Advanced idioms. Technical or academic language.',
+          sentences: 'Complex, varied structure (15-25 words). Subtle meanings and implications.',
+          length: '12-15 sentences',
+          example: 'Having devoted considerable time to the project, she was understandably disappointed when the results proved inconclusive.'
+        },
+        'C2': {
+          grammar: 'Full range of structures. Subtle use of emphasis, inversion. Advanced discourse markers.',
+          vocabulary: 'Precise, nuanced, context-appropriate. Idiomatic and colloquial when suitable.',
+          sentences: 'Sophisticated, natural flow. Varied for effect and emphasis.',
+          length: '12-15 sentences',
+          example: 'Seldom had she encountered such a conundrum. The implications, far-reaching though they were, warranted careful consideration.'
+        }
       };
 
-      const grammarRule = cefrRules[difficulty] || cefrRules['A2'];
+      const guide = cefrGuidelines[difficulty] || cefrGuidelines['A2'];
       const vocabularyList = words.map((w, i) => `${i + 1}. ${w}`).join('\n');
 
-      const systemPrompt = `You are an expert English language teacher.
-Create a meaningful, grammatically flawless story using ALL required words.
+      const systemPrompt = `You are a professional English language teacher and creative writer specializing in CEFR-appropriate learning materials.
 
-CEFR TENSE & GRAMMAR RULES:
-- A1: Present simple, basic nouns/verbs, ultra-short sentences.
-- A2: Past simple, future with 'going to', simple conjunctions.
-- B1: Present perfect, basic modals, basic relative clauses.
-- B2: Conditionals, passive voice, past progressive.
-- C1/C2: Complex clauses, advanced vocabulary, advanced tenses (past perfect continuous, subjunctive).
+Your task: Create an engaging, natural-sounding story that uses ALL the required vocabulary words.
 
-IMPORTANT:
-- Use EVERY word/phrase from the list at least once
-- If a word is a phrase or complete sentence (like "hello" or "We hope to hear from you soon"), use it naturally in dialogue or as a complete thought
-- If a word is single (like "blue" or "coffee"), incorporate it as part of a sentence
-- Keep additional words to minimum while ensuring logical sense
-- Return ONLY the story text, no explanations, no markdown formatting`;
+CRITICAL REQUIREMENTS:
+1. **Every single word must appear** - Check your story before finishing to ensure EVERY word from the list is included at least once
+2. **Natural integration** - Words should fit naturally into the narrative, not feel forced or listed
+3. **Contextual appropriateness**:
+   - Single words (e.g., "coffee", "blue") → integrate as part of sentences
+   - Phrases (e.g., "good morning", "thank you") → use in dialogue or natural contexts
+   - Complete sentences (e.g., "We hope to hear from you soon") → use as dialogue, letters, or complete thoughts
+4. **Story coherence** - Create ONE cohesive narrative with a clear beginning, middle, and end
+5. **CEFR Level ${difficulty}** - Strictly follow these guidelines:
+   - Grammar: ${guide.grammar}
+   - Vocabulary complexity: ${guide.vocabulary}
+   - Sentence structure: ${guide.sentences}
+   - Target length: ${guide.length}
+   - Example style: ${guide.example}
+
+STORY GUIDELINES:
+- Choose ONE realistic scenario (e.g., at a café, a day at work, meeting a friend, planning a trip)
+- Use realistic dialogue when appropriate (for greetings, phrases, etc.)
+- Create a natural flow - not a vocabulary exercise
+- Ensure grammatical perfection
+- NO markdown formatting, NO bold, NO explanations
+- Return ONLY the story text
+
+Think step-by-step:
+1. Identify which words are single words vs phrases vs complete sentences
+2. Choose a realistic scenario that can naturally incorporate these words
+3. Write a coherent story that flows naturally
+4. Double-check that EVERY word from the list appears at least once`;
 
       const userPrompt = `CEFR Level: ${difficulty}
-Grammar to use: ${grammarRule}
 
-Required Words:
+Vocabulary words to include (MUST use every single one):
 ${vocabularyList}
 
-Create a coherent 8-12 sentence story using ALL these words.`;
+Write a natural, engaging ${guide.length} story at ${difficulty} level using ALL these words. Make it feel like a real story, not a vocabulary list.`;
 
       try {
         // Try OpenAI API first (better quality, requires API key)
@@ -1791,8 +1842,8 @@ Create a coherent 8-12 sentence story using ALL these words.`;
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
               ],
-              temperature: 0.3,
-              max_tokens: 500
+              temperature: 0.7,  // More creative
+              max_tokens: 800    // Longer stories
             })
           });
 
@@ -1823,8 +1874,8 @@ Create a coherent 8-12 sentence story using ALL these words.`;
                 }]
               }],
               generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 500,
+                temperature: 0.7,      // More creative
+                maxOutputTokens: 800,  // Longer stories
               }
             })
           });
