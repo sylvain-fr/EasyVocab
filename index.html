@@ -329,8 +329,8 @@
           <table class="w-full text-left border-collapse">
             <thead class="bg-slate-800 text-slate-300 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
               <tr>
-                <th class="py-3 px-3">French Translation</th>
                 <th class="py-3 px-3">English Word</th>
+                <th class="py-3 px-3">French Translation</th>
                 <th class="py-3 px-3">Context Sentence</th>
                 <th class="py-3 px-3 w-10 text-center">Audio</th>
                 <th class="py-3 px-3 w-10 text-center" id="header-show-del">
@@ -372,8 +372,8 @@
               <thead>
                 <tr class="border-b-2 border-slate-800 text-xs font-bold uppercase text-slate-900">
                   <th class="py-3 px-2 w-[5%] text-center">✓</th>
-                  <th class="py-3 px-3 w-[23%]">French</th>
                   <th class="py-3 px-3 w-[22%]">English</th>
+                  <th class="py-3 px-3 w-[23%]">French</th>
                   <th class="py-3 px-3 w-[50%] bg-slate-50 text-slate-800 border-l border-slate-300">Your Answer</th>
                 </tr>
               </thead>
@@ -1275,42 +1275,20 @@
         tr.onclick = () => selectWord(idx);
 
         tr.innerHTML = `
-          <!-- French Input (FIRST) -->
-          <td class="py-2.5 px-3">
-            <div class="flex items-center gap-1">
-              <input type="text"
-                value="${escapeHtml(item.fr)}"
-                data-row="${idx}"
-                data-col="0"
-                spellcheck="true"
-                lang="fr"
-                onchange="updateWordItem(${idx}, 'fr', this.value)"
-                oninput="checkSpelling(this, ${idx}, 'fr')"
-                onkeydown="handleKeyNavigation(event, ${idx}, 0)"
-                onclick="event.stopPropagation()"
-                ${readonly}
-                class="vocab-input bg-transparent ${frUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full font-semibold text-slate-100 ${readonlyClass}">
-              ${isEditMode && item.fr ? `
-                <button onclick="event.stopPropagation(); clearField(${idx}, 'fr')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              ` : ''}
-            </div>
-          </td>
-          <!-- English Input (with hide/show) -->
+          <!-- English Input (FIRST - with hide/show) -->
           <td class="py-2.5 px-3 transition-opacity duration-300">
             <div class="flex flex-col gap-1">
               <div class="flex items-center gap-1 ${hiddenClass}">
                 <input type="text"
                   value="${escapeHtml(item.en)}"
                   data-row="${idx}"
-                  data-col="1"
+                  data-col="0"
                   id="en-input-${idx}"
                   spellcheck="true"
                   lang="en"
                   onchange="updateWordItem(${idx}, 'en', this.value)"
                   oninput="checkSpelling(this, ${idx}, 'en')"
-                  onkeydown="handleKeyNavigation(event, ${idx}, 1)"
+                  onkeydown="handleKeyNavigation(event, ${idx}, 0)"
                   onclick="event.stopPropagation()"
                   ${readonly}
                   class="vocab-input bg-transparent ${enUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full text-slate-300 ${readonlyClass}">
@@ -1325,6 +1303,28 @@
                 <span id="transcript-${idx}" class="text-slate-400 italic"></span>
                 <span id="score-${idx}" class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"></span>
               </div>
+            </div>
+          </td>
+          <!-- French Input (SECOND) -->
+          <td class="py-2.5 px-3">
+            <div class="flex items-center gap-1">
+              <input type="text"
+                value="${escapeHtml(item.fr)}"
+                data-row="${idx}"
+                data-col="1"
+                spellcheck="true"
+                lang="fr"
+                onchange="updateWordItem(${idx}, 'fr', this.value)"
+                oninput="checkSpelling(this, ${idx}, 'fr')"
+                onkeydown="handleKeyNavigation(event, ${idx}, 1)"
+                onclick="event.stopPropagation()"
+                ${readonly}
+                class="vocab-input bg-transparent ${frUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full font-semibold text-slate-100 ${readonlyClass}">
+              ${isEditMode && item.fr ? `
+                <button onclick="event.stopPropagation(); clearField(${idx}, 'fr')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
             </div>
           </td>
           <!-- Context Sentence Input (with hide/show) -->
@@ -1638,13 +1638,13 @@
           <td class="py-3 px-2 text-center align-middle">
             <div class="w-4 h-4 border-2 border-slate-400 rounded inline-block"></div>
           </td>
-          <!-- French Word -->
-          <td class="py-3 px-2 font-semibold text-slate-800 align-middle text-sm">
-            ${escapeHtml(item.fr)}
-          </td>
-          <!-- English Word (no context sentence) -->
+          <!-- English Word (FIRST) -->
           <td class="py-3 px-2 align-middle">
             <div class="font-bold text-slate-900 text-sm">${escapeHtml(item.en)}</div>
+          </td>
+          <!-- French Word (SECOND) -->
+          <td class="py-3 px-2 font-semibold text-slate-800 align-middle text-sm">
+            ${escapeHtml(item.fr)}
           </td>
           <!-- Student Handwriting Space with dotted line - WIDE -->
           <td class="py-3 px-3 bg-slate-50/50 border-l border-slate-300 align-middle">
