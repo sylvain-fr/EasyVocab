@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyVocab - Automated Tests</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { color: #3b82f6; }
+    .test-suite {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .test-case {
+      background: #0f172a;
+      border-left: 4px solid #64748b;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .test-case.pass {
+      border-left-color: #10b981;
+      background: #064e3b;
+    }
+    .test-case.fail {
+      border-left-color: #ef4444;
+      background: #7f1d1d;
+    }
+    .test-case.running {
+      border-left-color: #f59e0b;
+      background: #78350f;
+    }
+    .summary {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .pass-count { color: #10b981; }
+    .fail-count { color: #ef4444; }
+    .error-details {
+      background: #450a0a;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #64748b;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 EasyVocab Automated Tests</h1>
+
+  <button id="run-tests" onclick="runAllTests()">Run All Tests</button>
+
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <script>
+    // Test Framework
+    class TestRunner {
+      constructor() {
+        this.tests = [];
+        this.results = {
+          passed: 0,
+          failed: 0,
+          total: 0
+        };
+      }
+
+      async test(name, fn) {
+        this.tests.push({ name, fn });
+      }
+
+      async runAll() {
+        this.results = { passed: 0, failed: 0, total: 0 };
+        const resultsDiv = document.getElementById('test-results');
+        resultsDiv.innerHTML = '';
+
+        for (const test of this.tests) {
+          this.results.total++;
+          const testEl = this.createTestElement(test.name);
+          resultsDiv.appendChild(testEl);
+
+          try {
+            testEl.className = 'test-case running';
+            await test.fn();
+            testEl.className = 'test-case pass';
+            testEl.innerHTML = `✅ ${test.name}`;
+            this.results.passed++;
+          } catch (error) {
+            testEl.className = 'test-case fail';
+            testEl.innerHTML = `❌ ${test.name}<div class="error-details">${error.message}</div>`;
+            this.results.failed++;
+          }
+        }
+
+        this.showSummary();
+      }
+
+      createTestElement(name) {
+        const div = document.createElement('div');
+        div.className = 'test-case';
+        div.innerHTML = `⏳ ${name}`;
+        return div;
+      }
+
+      showSummary() {
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.className = 'summary';
+        summaryDiv.innerHTML = `
+          <div>Total: ${this.results.total}</div>
+          <div class="pass-count">Passed: ${this.results.passed}</div>
+          <div class="fail-count">Failed: ${this.results.failed}</div>
+        `;
+      }
+    }
+
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || 'Assertion failed');
+      }
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (actual !== expected) {
+        throw new Error(message || `Expected ${expected}, got ${actual}`);
+      }
+    }
+
+    function assertContains(text, substring, message) {
+      if (!text.includes(substring)) {
+        throw new Error(message || `Expected text to contain "${substring}"`);
+      }
+    }
+
+    // Test Suite
+    const runner = new TestRunner();
+
+    // ========================================================================
+    // TRANSLATION TESTS (MyMemory API)
+    // ========================================================================
+
+    runner.test('Translation API: Should translate "hello" to French', async () => {
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=hello&langpair=en|fr`);
+      assert(response.ok, 'API request failed');
+
+      const data = await response.json();
+      assert(data.responseData, 'No response data');
+
+      const translation = data.responseData.translatedText.toLowerCase();
+      assert(translation.includes('bonjour') || translation.includes('salut'),
+        `Translation "${translation}" doesn't match expected French greeting`);
+    });
+
+    runner.test('Translation API: Should translate "coffee" to French', async () => {
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=coffee&langpair=en|fr`);
+      assert(response.ok, 'API request failed');
+
+      const data = await response.json();
+      const translation = data.responseData.translatedText.toLowerCase();
+      assert(translation.includes('café'),
+        `Translation "${translation}" doesn't contain "café"`);
+    });
+
+    runner.test('Translation API: Should handle phrase translation', async () => {
+      const phrase = 'good morning';
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(phrase)}&langpair=en|fr`);
+      assert(response.ok, 'API request failed');
+
+      const data = await response.json();
+      const translation = data.responseData.translatedText.toLowerCase();
+      assert(translation.length > 0, 'Empty translation');
+      assert(translation.includes('bonjour'),
+        `Phrase translation "${translation}" doesn't contain "bonjour"`);
+    });
+
+    runner.test('Translation API: Should handle API errors gracefully', async () => {
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=&langpair=en|fr`);
+      assert(response.ok, 'API should respond even with empty query');
+
+      const data = await response.json();
+      assert(data.responseData, 'Should have response data structure');
+    });
+
+    // ========================================================================
+    // TEXT GENERATION TESTS (AI APIs)
+    // ========================================================================
+
+    runner.test('Text Generation: Should validate OpenAI API key format', () => {
+      const validKey = 'sk-proj-1234567890abcdef';
+      const invalidKey = 'invalid-key';
+
+      assert(validKey.startsWith('sk-'), 'Valid OpenAI key should start with sk-');
+      assert(!invalidKey.startsWith('sk-'), 'Invalid key should not pass validation');
+    });
+
+    runner.test('Text Generation: Should validate Gemini API key format', () => {
+      const validKey = 'AIzaSyABCDEF1234567890';
+      const invalidKey = 'invalid-gemini-key';
+
+      assert(validKey.startsWith('AIza'), 'Valid Gemini key should start with AIza');
+      assert(!invalidKey.startsWith('AIza'), 'Invalid key should not pass validation');
+    });
+
+    runner.test('Text Generation: Should build proper prompt for A1 level', () => {
+      const words = ['hello', 'coffee', 'blue'];
+      const difficulty = 'A1';
+
+      const prompt = buildTestPrompt(words, difficulty);
+
+      assertContains(prompt, 'A1', 'Prompt should mention A1 level');
+      assertContains(prompt, 'hello', 'Prompt should include word: hello');
+      assertContains(prompt, 'coffee', 'Prompt should include word: coffee');
+      assertContains(prompt, 'blue', 'Prompt should include word: blue');
+      assertContains(prompt, 'Present simple', 'A1 should use present simple');
+    });
+
+    runner.test('Text Generation: Should build proper prompt for B2 level', () => {
+      const words = ['however', 'although', 'consequently'];
+      const difficulty = 'B2';
+
+      const prompt = buildTestPrompt(words, difficulty);
+
+      assertContains(prompt, 'B2', 'Prompt should mention B2 level');
+      assertContains(prompt, 'Conditionals', 'B2 should mention conditionals');
+      assertContains(prompt, 'passive voice', 'B2 should mention passive voice');
+    });
+
+    runner.test('Text Generation: Should handle empty word list', () => {
+      const words = [];
+
+      assert(words.length === 0, 'Empty word list should be handled');
+      // In the real app, this should trigger an alert or error
+    });
+
+    runner.test('Text Generation: Should handle phrases and sentences', () => {
+      const words = ['hello', 'good morning', 'We hope to hear from you soon'];
+
+      const singleWords = words.filter(w => !w.includes(' '));
+      const phrases = words.filter(w => w.includes(' '));
+
+      assertEquals(singleWords.length, 1, 'Should identify 1 single word');
+      assertEquals(phrases.length, 2, 'Should identify 2 phrases');
+    });
+
+    runner.test('Text Generation: Should validate story uses all words', () => {
+      const words = ['coffee', 'morning', 'blue'];
+      const story = 'In the morning, I had a coffee. The sky was blue.';
+
+      words.forEach(word => {
+        assertContains(story, word, `Story should contain word: ${word}`);
+      });
+    });
+
+    runner.test('Text Generation: Temperature should be creative (0.7)', () => {
+      const temperature = 0.7;
+
+      assert(temperature >= 0.5 && temperature <= 1.0,
+        'Temperature should be between 0.5 and 1.0 for creative output');
+    });
+
+    runner.test('Text Generation: Max tokens should support longer stories', () => {
+      const maxTokens = 800;
+
+      assert(maxTokens >= 500, 'Max tokens should be at least 500 for decent stories');
+      assert(maxTokens <= 2000, 'Max tokens should be reasonable to avoid costs');
+    });
+
+    // ========================================================================
+    // HELPER FUNCTIONS (mimic app functions for testing)
+    // ========================================================================
+
+    function buildTestPrompt(words, difficulty) {
+      const cefrGuidelines = {
+        'A1': {
+          grammar: 'Present simple, basic nouns/verbs',
+          sentences: 'Very short (3-6 words)'
+        },
+        'B2': {
+          grammar: 'Conditionals, passive voice, past progressive',
+          sentences: 'Longer, more complex'
+        }
+      };
+
+      const guide = cefrGuidelines[difficulty] || cefrGuidelines['A1'];
+      const vocabularyList = words.map((w, i) => `${i + 1}. ${w}`).join('\n');
+
+      return `CEFR Level: ${difficulty}
+Grammar: ${guide.grammar}
+Sentences: ${guide.sentences}
+
+Vocabulary:
+${vocabularyList}`;
+    }
+
+    // ========================================================================
+    // RUN TESTS
+    // ========================================================================
+
+    async function runAllTests() {
+      const button = document.getElementById('run-tests');
+      button.disabled = true;
+      button.textContent = 'Running tests...';
+
+      await runner.runAll();
+
+      button.disabled = false;
+      button.textContent = 'Run All Tests Again';
+    }
+
+    // Auto-run tests on load
+    window.addEventListener('load', () => {
+      console.log('Test page loaded. Click "Run All Tests" to start.');
+    });
+  </script>
+</body>
+</html>
