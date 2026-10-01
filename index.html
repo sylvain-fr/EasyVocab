@@ -187,6 +187,11 @@
               <span class="hidden sm:inline">Add Word</span>
               <span class="sm:hidden">Add</span>
             </button>
+            <button onclick="deleteActiveList()" id="delete-list-btn" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-red-600 hover:bg-red-700 text-white border border-red-600" title="Delete current word list">
+              <i class="fa-solid fa-trash"></i>
+              <span class="hidden sm:inline">Delete List</span>
+              <span class="sm:hidden">Delete</span>
+            </button>
           </div>
 
           <!-- Listening View Actions -->
@@ -803,7 +808,7 @@
       renderListTabs()
       renderVocabTable()
       renderPrintableWorksheet()
-      generateListeningText()
+      generateListeningText(false) // Don't show errors on initial load
       updateListCount()
 
       // Initialize show-mode-only visibility (start in read-only mode)
@@ -919,7 +924,7 @@
         // Regenerate listening practice text if we have a current text
         // This ensures listening practice reflects the updated vocabulary
         if (currentListeningText && currentView === 'listening') {
-          generateListeningText();
+          generateListeningText(false); // Don't show errors when auto-updating after save
         }
       }
 
@@ -1137,7 +1142,7 @@
         document.getElementById('actions-listening').classList.remove('hidden');
         document.getElementById('print-btn').classList.add('hidden'); // Hide print button
         if (!currentListeningText) {
-          generateListeningText();
+          generateListeningText(false); // Don't show errors when auto-generating on view switch
           estimateAudioDuration();
         }
       }
@@ -1153,9 +1158,6 @@
 
       Object.keys(userLists).forEach(listName => {
         const isActive = listName === activeListName;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'relative group';
-
         const btn = document.createElement('button');
         btn.className = `w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-between ${
           isActive
@@ -1174,22 +1176,11 @@
         };
 
         btn.innerHTML = `
-          <span class="truncate pr-6">${escapeHtml(listName)}</span>
+          <span class="truncate">${escapeHtml(listName)}</span>
           <span class="text-xs px-2 py-0.5 rounded-full ml-2 ${isActive ? 'bg-brand-700 text-white' : 'bg-slate-700 text-slate-300'}">${userLists[listName].length}</span>
         `;
 
-        // Add delete button (only show on hover)
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'absolute right-12 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white';
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>';
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation(); // Prevent switching to this list
-          deleteList(listName);
-        };
-
-        wrapper.appendChild(btn);
-        wrapper.appendChild(deleteBtn);
-        container.appendChild(wrapper);
+        container.appendChild(btn);
       });
 
       // Also render listening list selector
@@ -1299,15 +1290,17 @@
       updateListCount()
     }
 
-    async function deleteList(listName) {
+    async function deleteActiveList() {
+      const listName = activeListName;
+
       // Prevent deleting the last list
       if (Object.keys(userLists).length <= 1) {
-        alert('Cannot delete the last list. You must have at least one word list.');
+        alert('❌ Cannot delete the last list\n\nYou must have at least one word list.');
         return;
       }
 
       // Confirm deletion
-      const confirmed = confirm(`Are you sure you want to delete "${listName}"?\n\nThis will permanently delete ${userLists[listName].length} words and cannot be undone.`);
+      const confirmed = confirm(`⚠️ Delete "${listName}"?\n\nThis will permanently delete ${userLists[listName].length} words and cannot be undone.\n\nAre you sure?`);
       if (!confirmed) return;
 
       // Delete from Supabase database
@@ -1318,7 +1311,7 @@
         .eq('name', listName);
 
       if (error) {
-        alert('Error deleting list: ' + error.message);
+        alert('❌ Error deleting list:\n\n' + error.message);
         return;
       }
 
@@ -1328,16 +1321,16 @@
       // Remove from selectedListsForListening if present
       selectedListsForListening = selectedListsForListening.filter(ln => ln !== listName);
 
-      // Switch to first available list if we deleted the active one
-      if (activeListName === listName) {
-        activeListName = Object.keys(userLists)[0];
-        selectedWordIndex = 0;
-      }
+      // Switch to first available list
+      activeListName = Object.keys(userLists)[0];
+      selectedWordIndex = 0;
 
       renderListTabs();
       renderVocabTable();
       renderPrintableWorksheet();
       updateListCount();
+
+      alert('✅ List deleted successfully');
     }
 
     function renderVocabTable() {
@@ -1882,12 +1875,14 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       document.getElementById('prompt-preview-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    async function generateListeningText() {
+    async function generateListeningText(showErrors = true) {
       // Get words from ALL selected lists
       const allWords = selectedListsForListening.flatMap(listName => userLists[listName] || []);
 
       if (allWords.length === 0) {
-        alert('Please select at least one list with words.');
+        if (showErrors) {
+          alert('Please select at least one list with words.');
+        }
         return;
       }
 
@@ -1929,13 +1924,16 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       } catch (error) {
         console.error('Error generating text:', error);
 
-        // Show specific error message based on error type
-        if (error.message === 'NO_API_KEY') {
-          alert('❌ No AI API key configured!\n\nPlease add your OpenAI or Google Gemini API key:\n1. Click "AI Settings" button\n2. Enter your API key\n3. Click "Save"\n\nTo get an API key:\n• OpenAI: https://platform.openai.com/api-keys\n• Google Gemini: https://aistudio.google.com/app/apikey');
-        } else if (error.message && error.message.includes('API failed')) {
-          alert('❌ AI API Error\n\n' + error.message + '\n\nPossible reasons:\n• Invalid API key\n• Network connection issue\n• API service temporarily unavailable\n• Rate limit exceeded\n\nPlease check your API key in AI Settings and try again.');
-        } else {
-          alert('❌ Error generating text\n\n' + (error.message || 'Unknown error') + '\n\nPlease try again or check your API key configuration.');
+        // Only show error alerts if this was user-initiated (button click)
+        if (showErrors) {
+          // Show specific error message based on error type
+          if (error.message === 'NO_API_KEY') {
+            alert('❌ No AI API key configured!\n\nPlease add your OpenAI or Google Gemini API key:\n1. Click "AI Settings" button\n2. Enter your API key\n3. Click "Save"\n\nTo get an API key:\n• OpenAI: https://platform.openai.com/api-keys\n• Google Gemini: https://aistudio.google.com/app/apikey');
+          } else if (error.message && error.message.includes('API failed')) {
+            alert('❌ AI API Error\n\n' + error.message + '\n\nPossible reasons:\n• Invalid API key\n• Network connection issue\n• API service temporarily unavailable\n• Rate limit exceeded\n\nPlease check your API key in AI Settings and try again.');
+          } else {
+            alert('❌ Error generating text\n\n' + (error.message || 'Unknown error') + '\n\nPlease try again or check your API key configuration.');
+          }
         }
       } finally {
         // Restore button
