@@ -187,6 +187,21 @@
               <span class="hidden sm:inline">Add Word</span>
               <span class="sm:hidden">Add</span>
             </button>
+            <button onclick="startLearnMode()" id="learn-mode-btn" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600" title="Learn vocabulary with audio">
+              <i class="fa-solid fa-play"></i>
+              <span class="hidden sm:inline">Learn Mode</span>
+              <span class="sm:hidden">Learn</span>
+            </button>
+            <button onclick="startTestMode()" id="test-mode-btn" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-purple-600 hover:bg-purple-700 text-white border border-purple-600" title="Test vocabulary recall">
+              <i class="fa-solid fa-microphone"></i>
+              <span class="hidden sm:inline">Test Mode</span>
+              <span class="sm:hidden">Test</span>
+            </button>
+            <select id="practice-filter" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600" title="Filter words to practice">
+              <option value="all">All Words</option>
+              <option value="failed">Failed (&lt;70%)</option>
+              <option value="unscored">Not Practiced</option>
+            </select>
             <button onclick="deleteActiveList()" id="delete-list-btn" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-red-600 hover:bg-red-700 text-white border border-red-600" title="Delete current word list">
               <i class="fa-solid fa-trash"></i>
               <span class="hidden sm:inline">Delete List</span>
@@ -331,6 +346,61 @@
     <!-- ========================================================================= -->
     <section id="manage-tab" class="tab-content block space-y-6">
 
+      <!-- Practice Stats Panel (hidden by default, shown during practice) -->
+      <div id="practice-stats-panel" class="hidden bg-slate-900 rounded-xl border border-slate-700 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-300">
+            <i class="fa-solid fa-chart-line mr-2"></i>
+            <span id="practice-mode-label">Learn Mode</span> - Progress
+          </h3>
+          <button onclick="stopPractice()" class="text-xs px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+            <i class="fa-solid fa-stop mr-1"></i>Stop
+          </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-3">
+          <div class="flex justify-between text-xs text-slate-400 mb-1">
+            <span id="practice-progress-text">Word 1 of 10</span>
+            <span id="practice-avg-score">Avg: 0%</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2">
+            <div id="practice-progress-bar" class="bg-brand-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-4 gap-3 text-center text-xs">
+          <div class="bg-slate-800 rounded-lg p-2">
+            <div class="text-slate-400">Total</div>
+            <div class="text-lg font-bold text-slate-100" id="stats-total">0</div>
+          </div>
+          <div class="bg-slate-800 rounded-lg p-2">
+            <div class="text-slate-400">Done</div>
+            <div class="text-lg font-bold text-emerald-400" id="stats-done">0</div>
+          </div>
+          <div class="bg-slate-800 rounded-lg p-2">
+            <div class="text-slate-400">Perfect</div>
+            <div class="text-lg font-bold text-amber-400" id="stats-perfect">0</div>
+          </div>
+          <div class="bg-slate-800 rounded-lg p-2">
+            <div class="text-slate-400">Failed</div>
+            <div class="text-lg font-bold text-red-400" id="stats-failed">0</div>
+          </div>
+        </div>
+
+        <!-- Current Word Status (during practice) -->
+        <div id="practice-current-status" class="hidden mt-3 p-3 bg-slate-800 rounded-lg text-center">
+          <div class="text-sm text-slate-300" id="practice-status-message">
+            🔊 Listen carefully...
+          </div>
+          <div id="practice-recording-indicator" class="hidden mt-2 flex items-center justify-center space-x-2">
+            <div class="w-2 h-2 bg-red-500 rounded-full recording-pulse"></div>
+            <span class="text-red-400 font-semibold text-sm">Recording... Speak now!</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Word Management Table (Full Width) -->
       <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col">
 
@@ -343,6 +413,7 @@
                 <th class="py-3 px-3">French Translation</th>
                 <th class="py-3 px-3">Context Sentence</th>
                 <th class="py-3 px-3 w-10 text-center">Audio</th>
+                <th class="py-3 px-3 w-24 text-center">Practice Score</th>
                 <th class="py-3 px-3 w-10 text-center" id="header-show-del">
                   <span class="show-mode-only">Show</span>
                   <span class="edit-mode-only hidden">Del</span>
@@ -833,7 +904,8 @@
             en,
             fr,
             sentence,
-            position
+            position,
+            practice_score
           )
         `)
         .order('name')
@@ -848,7 +920,8 @@
             id: item.id, // Keep DB ID for updates
             en: item.en,
             fr: item.fr,
-            sentence: item.sentence || ''
+            sentence: item.sentence || '',
+            practiceScore: item.practice_score // Load practice score
           }))
         })
 
@@ -1450,6 +1523,21 @@
                   <i class="fa-solid fa-microphone text-sm" id="mic-icon-${idx}"></i>
                 </button>
               ` : ''}
+            </div>
+          </td>
+          <!-- Practice Score Column -->
+          <td class="py-2.5 px-3 text-center">
+            <div class="flex items-center justify-center gap-1">
+              ${item.practiceScore !== undefined && item.practiceScore !== null ? `
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${getScoreClass(item.practiceScore)}">
+                  ${item.practiceScore}%
+                </span>
+                <button onclick="event.stopPropagation(); clearWordScore(${idx})" class="text-slate-500 hover:text-red-400 transition-colors" title="Clear score">
+                  <i class="fa-solid fa-times text-xs"></i>
+                </button>
+              ` : `
+                <span class="text-slate-500 text-xs">-</span>
+              `}
             </div>
           </td>
           <!-- Show/Hide or Delete Button (conditional) -->
@@ -2884,6 +2972,381 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       } else {
         wrapper.classList.add('hidden');
         chevron.className = 'fa-solid fa-chevron-down text-slate-500';
+      }
+    }
+
+    // =========================================================================
+    // FEATURE 4: VOCABULARY PRACTICE MODES (LEARN & TEST)
+    // =========================================================================
+
+    // Practice state variables
+    let isPracticing = false;
+    let practiceMode = null; // 'learn' or 'test'
+    let practiceIndex = 0;
+    let practiceWordsList = []; // Filtered list based on practice-filter
+    let practiceRecognition = null;
+    let currentPracticeWord = null;
+
+    // Start Learn Mode
+    function startLearnMode() {
+      startPractice('learn');
+    }
+
+    // Start Test Mode
+    function startTestMode() {
+      startPractice('test');
+    }
+
+    // Initialize practice session
+    function startPractice(mode) {
+      practiceMode = mode;
+      isPracticing = true;
+      practiceIndex = 0;
+
+      // Get filtered word list
+      const filter = document.getElementById('practice-filter').value;
+      const allWords = userLists[activeListName] || [];
+
+      if (filter === 'all') {
+        practiceWordsList = allWords.filter(w => w.en && w.en.trim() !== '');
+      } else if (filter === 'failed') {
+        practiceWordsList = allWords.filter(w =>
+          w.en && w.en.trim() !== '' &&
+          w.practiceScore !== undefined && w.practiceScore !== null && w.practiceScore < 70
+        );
+      } else if (filter === 'unscored') {
+        practiceWordsList = allWords.filter(w =>
+          w.en && w.en.trim() !== '' &&
+          (w.practiceScore === undefined || w.practiceScore === null)
+        );
+      }
+
+      if (practiceWordsList.length === 0) {
+        alert(`No words to practice with "${filter === 'all' ? 'All Words' : filter === 'failed' ? 'Failed (<70%)' : 'Not Practiced'}" filter!`);
+        return;
+      }
+
+      // Show stats panel
+      document.getElementById('practice-stats-panel').classList.remove('hidden');
+      document.getElementById('practice-mode-label').textContent = mode === 'learn' ? 'Learn Mode' : 'Test Mode';
+      document.getElementById('practice-current-status').classList.remove('hidden');
+
+      // Initialize speech recognition
+      if (!('webkitSpeechRecognition' in window)) {
+        alert('❌ Speech recognition not supported.\n\nPlease use Chrome or Edge browser.');
+        stopPractice();
+        return;
+      }
+
+      practiceRecognition = new webkitSpeechRecognition();
+      practiceRecognition.continuous = false;
+      practiceRecognition.lang = 'en-US';
+      practiceRecognition.interimResults = false;
+
+      practiceRecognition.onresult = (event) => {
+        handlePracticeRecognition(event);
+      };
+
+      practiceRecognition.onerror = (event) => {
+        console.error('Recognition error:', event.error);
+        document.getElementById('practice-recording-indicator').classList.add('hidden');
+        document.getElementById('practice-status-message').textContent = '❌ Recognition error. Moving to next word...';
+        setTimeout(() => {
+          practiceIndex++;
+          practiceNextWord();
+        }, 1500);
+      };
+
+      updatePracticeStats();
+      practiceNextWord();
+    }
+
+    // Practice next word
+    async function practiceNextWord() {
+      if (practiceIndex >= practiceWordsList.length) {
+        // Practice complete
+        finishPractice();
+        return;
+      }
+
+      // Get current word from the filtered list
+      currentPracticeWord = practiceWordsList[practiceIndex];
+
+      // Find the actual index in the full list for highlighting
+      const fullList = userLists[activeListName];
+      const actualIndex = fullList.findIndex(w => w === currentPracticeWord);
+
+      // Highlight current word in table
+      highlightPracticeWord(actualIndex);
+
+      // Update progress
+      updatePracticeStats();
+
+      // Update status
+      document.getElementById('practice-status-message').textContent = '🔊 Listen carefully...';
+      document.getElementById('practice-recording-indicator').classList.add('hidden');
+
+      // Play French word
+      await speakText(currentPracticeWord.fr, 'fr-FR');
+
+      // In Learn mode, also play English
+      if (practiceMode === 'learn') {
+        await sleep(500);
+        await speakText(currentPracticeWord.en, 'en-US');
+      }
+
+      // Wait a bit, then start recording
+      await sleep(800);
+      startPracticeRecording();
+    }
+
+    // Speak text using TTS
+    function speakText(text, lang) {
+      return new Promise((resolve) => {
+        window.speechSynthesis.cancel(); // Cancel any ongoing speech
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = 0.9;
+
+        // Select appropriate voice
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.lang.startsWith(lang.substring(0, 2)));
+        if (voice) utterance.voice = voice;
+
+        utterance.onend = resolve;
+        utterance.onerror = resolve; // Resolve even on error to continue
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
+    // Sleep helper
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Start recording student's answer
+    function startPracticeRecording() {
+      document.getElementById('practice-status-message').textContent = '🎤 Your turn! Say the English word...';
+      document.getElementById('practice-recording-indicator').classList.remove('hidden');
+
+      if (practiceRecognition) {
+        try {
+          practiceRecognition.start();
+        } catch (error) {
+          console.error('Error starting recognition:', error);
+          setTimeout(() => {
+            practiceIndex++;
+            practiceNextWord();
+          }, 1000);
+        }
+      }
+    }
+
+    // Handle speech recognition result
+    function handlePracticeRecognition(event) {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      const expectedWord = currentPracticeWord.en.toLowerCase().trim();
+
+      // Hide recording indicator
+      document.getElementById('practice-recording-indicator').classList.add('hidden');
+
+      // Calculate score
+      const score = calculateWordSimilarity(transcript, expectedWord);
+
+      // Store score in the word object
+      currentPracticeWord.practiceScore = score;
+
+      // Update in database
+      savePracticeScore(currentPracticeWord, score);
+
+      // Show result
+      const emoji = score >= 85 ? '✅' : score >= 55 ? '👍' : '❌';
+      const message = score >= 85 ? 'Excellent!' : score >= 55 ? 'Good!' : 'Keep trying!';
+      document.getElementById('practice-status-message').textContent = `${emoji} ${message} (${score}%)`;
+
+      // Update stats
+      updatePracticeStats();
+
+      // Re-render table to show updated score
+      renderVocabTable();
+
+      // Move to next word after delay
+      setTimeout(() => {
+        practiceIndex++;
+        practiceNextWord();
+      }, 2000);
+    }
+
+    // Calculate similarity between spoken and expected word
+    function calculateWordSimilarity(spoken, expected) {
+      // Exact match
+      if (spoken === expected) return 100;
+
+      // Split into words
+      const spokenWords = spoken.split(/\s+/).filter(w => w.length > 0);
+      const expectedWords = expected.split(/\s+/).filter(w => w.length > 0);
+
+      if (expectedWords.length === 0) return 0;
+
+      // Count matching words
+      let matches = 0;
+      expectedWords.forEach(expectedWord => {
+        if (spokenWords.some(spokenWord =>
+          spokenWord === expectedWord ||
+          spokenWord.includes(expectedWord) ||
+          expectedWord.includes(spokenWord)
+        )) {
+          matches++;
+        }
+      });
+
+      // Calculate percentage
+      return Math.round((matches / expectedWords.length) * 100);
+    }
+
+    // Save practice score to database
+    async function savePracticeScore(item, score) {
+      if (!item.id) return; // No database ID
+
+      try {
+        await supabaseClient
+          .from('vocabulary_items')
+          .update({
+            practice_score: score,
+            updated_at: new Date()
+          })
+          .eq('id', item.id);
+      } catch (error) {
+        console.error('Error saving practice score:', error);
+      }
+    }
+
+    // Update practice stats display
+    function updatePracticeStats() {
+      const total = practiceWordsList.length;
+      const done = practiceIndex;
+      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      // Calculate statistics from all words in the filtered list
+      let perfectCount = 0;
+      let failedCount = 0;
+      let totalScore = 0;
+      let scoredCount = 0;
+
+      practiceWordsList.forEach((word, idx) => {
+        if (idx < practiceIndex && word.practiceScore !== undefined && word.practiceScore !== null) {
+          scoredCount++;
+          totalScore += word.practiceScore;
+          if (word.practiceScore === 100) perfectCount++;
+          if (word.practiceScore < 70) failedCount++;
+        }
+      });
+
+      const avgScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 0;
+
+      // Update display
+      document.getElementById('practice-progress-text').textContent = `Word ${practiceIndex + 1} of ${total}`;
+      document.getElementById('practice-avg-score').textContent = `Avg: ${avgScore}%`;
+      document.getElementById('practice-progress-bar').style.width = `${progress}%`;
+
+      document.getElementById('stats-total').textContent = total;
+      document.getElementById('stats-done').textContent = done;
+      document.getElementById('stats-perfect').textContent = perfectCount;
+      document.getElementById('stats-failed').textContent = failedCount;
+    }
+
+    // Highlight current word being practiced
+    function highlightPracticeWord(index) {
+      // Remove previous highlights
+      document.querySelectorAll('.practice-highlight').forEach(el => {
+        el.classList.remove('practice-highlight', 'ring-2', 'ring-brand-500');
+      });
+
+      // Add highlight to current row
+      const rows = document.querySelectorAll('#vocab-table-body tr');
+      if (rows[index]) {
+        rows[index].classList.add('practice-highlight', 'ring-2', 'ring-brand-500');
+        rows[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Finish practice session
+    function finishPractice() {
+      document.getElementById('practice-current-status').classList.add('hidden');
+      document.getElementById('practice-status-message').textContent = '🎉 Practice Complete!';
+      document.getElementById('practice-current-status').classList.remove('hidden');
+
+      // Calculate final stats
+      const totalWords = practiceWordsList.length;
+      let totalScore = 0;
+      let scoredCount = 0;
+
+      practiceWordsList.forEach(word => {
+        if (word.practiceScore !== undefined && word.practiceScore !== null) {
+          scoredCount++;
+          totalScore += word.practiceScore;
+        }
+      });
+
+      const avgScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 0;
+      const perfectCount = document.getElementById('stats-perfect').textContent;
+      const failedCount = document.getElementById('stats-failed').textContent;
+
+      // Show completion message
+      setTimeout(() => {
+        alert(`🎉 Practice Complete!\n\nWords practiced: ${totalWords}\nAverage score: ${avgScore}%\nPerfect scores: ${perfectCount}\nFailed (<70%): ${failedCount}\n\nGreat job! Keep practicing to improve your scores.`);
+        stopPractice();
+      }, 1000);
+    }
+
+    // Stop practice
+    function stopPractice() {
+      isPracticing = false;
+      practiceMode = null;
+      practiceIndex = 0;
+      practiceWordsList = [];
+      currentPracticeWord = null;
+
+      if (practiceRecognition) {
+        try {
+          practiceRecognition.stop();
+        } catch (e) {
+          // Ignore errors when stopping
+        }
+        practiceRecognition = null;
+      }
+
+      window.speechSynthesis.cancel();
+
+      document.getElementById('practice-stats-panel').classList.add('hidden');
+
+      // Remove highlights
+      document.querySelectorAll('.practice-highlight').forEach(el => {
+        el.classList.remove('practice-highlight', 'ring-2', 'ring-brand-500');
+      });
+
+      // Re-render table
+      renderVocabTable();
+    }
+
+    // Clear individual word score
+    async function clearWordScore(index) {
+      const item = userLists[activeListName][index];
+      if (!item) return;
+
+      if (confirm(`Clear practice score for "${item.en}"?`)) {
+        delete item.practiceScore;
+
+        // Update database
+        if (item.id) {
+          await supabaseClient
+            .from('vocabulary_items')
+            .update({ practice_score: null })
+            .eq('id', item.id);
+        }
+
+        renderVocabTable();
       }
     }
 
