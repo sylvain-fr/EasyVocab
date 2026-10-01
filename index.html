@@ -204,6 +204,11 @@
               <option value="C1">C1 - Advanced</option>
               <option value="C2">C2 - Proficient</option>
             </select>
+            <button onclick="generatePromptOnly()" class="listening-edit-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-indigo-600 hover:bg-indigo-700 text-white" title="Build prompt without calling AI">
+              <i class="fa-solid fa-code"></i>
+              <span class="hidden sm:inline">Generate Prompt</span>
+              <span class="sm:hidden">Prompt</span>
+            </button>
             <button onclick="generateListeningText()" class="listening-edit-only hidden px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-purple-600 hover:bg-purple-700 text-white">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
               <span class="hidden sm:inline">Generate Text</span>
@@ -1689,6 +1694,132 @@
     // FEATURE 3: LISTENING TEXT EXERCISE
     // =========================================================================
 
+    // Generate and display prompt only (no AI call)
+    function generatePromptOnly() {
+      // Get words from ALL selected lists
+      const allWords = selectedListsForListening.flatMap(listName => userLists[listName] || []);
+
+      if (allWords.length === 0) {
+        alert('Please select at least one list with words.');
+        return;
+      }
+
+      // Get unique English words from all selected lists
+      const uniqueWords = [...new Set(allWords.map(item => item.en).filter(w => w && w.trim() !== ''))];
+
+      // Build the prompt (same logic as createTextFromWordsWithAI)
+      const difficulty = listeningDifficulty;
+
+      const cefrGuidelines = {
+        'A1': {
+          grammar: 'Present simple, present continuous, simple imperatives. Basic "to be" and "have". Simple questions with do/does.',
+          vocabulary: 'Common everyday words (food, family, colors, numbers 1-100). Ultra-basic verbs (go, come, eat, drink).',
+          sentences: 'Very short (3-6 words). One idea per sentence. Simple Subject-Verb-Object structure.',
+          length: '6-8 sentences',
+          example: 'I like coffee. The sky is blue. My friend says hello.'
+        },
+        'A2': {
+          grammar: 'Past simple, future with "going to" and "will". Simple conjunctions (and, but, because). Can/could for ability.',
+          vocabulary: 'Everyday situations (travel, shopping, work). Common adjectives and adverbs. Numbers, dates, time.',
+          sentences: 'Short to medium (5-10 words). Can link 2 simple ideas. Basic descriptions.',
+          length: '8-10 sentences',
+          example: 'Yesterday I went to a café. I ordered a coffee because I was tired. The weather was nice and sunny.'
+        },
+        'B1': {
+          grammar: 'Present perfect, past continuous, future forms. Modal verbs (should, must, might). Basic relative clauses (who, which, that).',
+          vocabulary: 'Abstract concepts (opinion, experience). Common phrasal verbs. Work and leisure topics.',
+          sentences: 'Medium length (8-15 words). Can express reasons and results. Some complex sentences.',
+          length: '10-12 sentences',
+          example: 'I have been working here for three years. The job can be challenging, but I enjoy meeting new people.'
+        },
+        'B2': {
+          grammar: 'All past tenses, conditionals (type 1 & 2), passive voice. Reported speech. Complex conjunctions (although, unless, whereas).',
+          vocabulary: 'More abstract language. Idiomatic expressions. Formal and informal registers.',
+          sentences: 'Longer, more complex (12-20 words). Multiple clauses. Nuanced expression.',
+          length: '12-15 sentences',
+          example: 'Although it was raining, we decided to go ahead with our plans. The experience taught me that perseverance is important.'
+        },
+        'C1': {
+          grammar: 'Advanced tenses (past perfect continuous), sophisticated conditionals, subjunctive mood. Complex passives.',
+          vocabulary: 'Sophisticated, precise word choice. Advanced idioms. Technical or academic language.',
+          sentences: 'Complex, varied structure (15-25 words). Subtle meanings and implications.',
+          length: '12-15 sentences',
+          example: 'Having devoted considerable time to the project, she was understandably disappointed when the results proved inconclusive.'
+        },
+        'C2': {
+          grammar: 'Full range of structures. Subtle use of emphasis, inversion. Advanced discourse markers.',
+          vocabulary: 'Precise, nuanced, context-appropriate. Idiomatic and colloquial when suitable.',
+          sentences: 'Sophisticated, natural flow. Varied for effect and emphasis.',
+          length: '12-15 sentences',
+          example: 'Seldom had she encountered such a conundrum. The implications, far-reaching though they were, warranted careful consideration.'
+        }
+      };
+
+      const guide = cefrGuidelines[difficulty] || cefrGuidelines['A2'];
+      const vocabularyList = uniqueWords.map((w, i) => `${i + 1}. ${w}`).join('\n');
+
+      const selectedListsInfo = selectedListsForListening && selectedListsForListening.length > 0
+        ? `\nSelected word lists: ${selectedListsForListening.join(', ')}\nTotal unique words: ${uniqueWords.length}\n`
+        : '';
+
+      const systemPrompt = `You are a professional English language teacher and creative writer specializing in CEFR-appropriate learning materials.
+
+Your task: Create an engaging, natural-sounding story that incorporates vocabulary words from the provided list.
+
+CRITICAL REQUIREMENTS:
+1. **Use most words from the list** - Most of the words in your story should come from the provided vocabulary list
+2. **Natural integration** - Words should fit naturally into the narrative, not feel forced or listed
+3. **Contextual appropriateness**:
+   - Single words (e.g., "coffee", "blue") → integrate as part of sentences
+   - Phrases (e.g., "good morning", "thank you") → use in dialogue or natural contexts
+   - Complete sentences (e.g., "We hope to hear from you soon") → use as dialogue, letters, or complete thoughts
+4. **Story coherence** - Create ONE cohesive narrative with a clear beginning, middle, and end
+5. **CEFR Level ${difficulty}** - Strictly follow these guidelines:
+   - Grammar: ${guide.grammar}
+   - Vocabulary complexity: ${guide.vocabulary}
+   - Sentence structure: ${guide.sentences}
+   - Target length: ${guide.length}
+   - Example style: ${guide.example}
+
+STORY GUIDELINES:
+- Choose ONE realistic scenario (e.g., at a café, a day at work, meeting a friend, planning a trip)
+- Use realistic dialogue when appropriate (for greetings, phrases, etc.)
+- Create a natural flow - not a vocabulary exercise
+- Ensure grammatical perfection
+- NO markdown formatting, NO bold, NO explanations
+- Return ONLY the story text
+
+Think step-by-step:
+1. Identify which words are single words vs phrases vs complete sentences
+2. Choose a realistic scenario that can naturally incorporate these words
+3. Write a coherent story that flows naturally
+4. Most of the words used should be picked from the input list`;
+
+      const userPrompt = `CEFR Level: ${difficulty}
+${selectedListsInfo}
+Vocabulary words to pick from (most words in your story should come from this list):
+${vocabularyList}
+
+Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick most of your words from the list above. Make it feel like a real story, not a vocabulary exercise.`;
+
+      // Display prompts in the preview section
+      const systemPromptDisplay = document.getElementById('system-prompt-display');
+      const userPromptDisplay = document.getElementById('user-prompt-display');
+      if (systemPromptDisplay) systemPromptDisplay.textContent = systemPrompt;
+      if (userPromptDisplay) userPromptDisplay.textContent = userPrompt;
+
+      // Auto-expand the prompt preview
+      const promptContent = document.getElementById('prompt-preview-content');
+      const icon = document.getElementById('prompt-expand-icon');
+      if (promptContent && promptContent.classList.contains('hidden')) {
+        promptContent.classList.remove('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-up text-purple-400';
+      }
+
+      // Scroll to the prompt preview
+      document.getElementById('prompt-preview-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     async function generateListeningText() {
       // Get words from ALL selected lists
       const allWords = selectedListsForListening.flatMap(listName => userLists[listName] || []);
@@ -1727,6 +1858,9 @@
 
         // Update transcription display with sentences
         renderSentencesWithRecordButtons();
+
+        // Estimate audio duration for progressive transcription
+        estimateAudioDuration();
 
         // Update word count display
         updateListeningWordCount();
@@ -2293,12 +2427,14 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       });
     }
 
+    let audioPaused = false; // Track pause state manually
+
     function toggleAudioPlayback() {
       if (audioPlaying) {
         pauseAudio();
       } else {
         // Check if we're resuming or starting fresh
-        if (window.speechSynthesis.paused) {
+        if (audioPaused && window.speechSynthesis.paused) {
           resumeAudio();
         } else {
           playAudio();
@@ -2318,8 +2454,9 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         return;
       }
 
-      // Cancel any existing speech
+      // Cancel any existing speech and reset pause state
       window.speechSynthesis.cancel();
+      audioPaused = false;
 
       audioUtterance = new SpeechSynthesisUtterance(text);
       audioUtterance.lang = 'en-US';
@@ -2357,6 +2494,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.pause();
         audioPlaying = false;
+        audioPaused = true; // Mark as paused
         updatePlayPauseButton();
         stopProgressTracking();
       }
@@ -2366,6 +2504,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
         audioPlaying = true;
+        audioPaused = false; // No longer paused
         updatePlayPauseButton();
         startProgressTracking();
       }
@@ -2374,6 +2513,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
     function stopAudio() {
       window.speechSynthesis.cancel();
       audioPlaying = false;
+      audioPaused = false; // Reset pause state
       audioCurrentTime = 0;
       updatePlayPauseButton();
       updateProgressBar();
@@ -2624,6 +2764,10 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
     function changeSpeed() {
       const select = document.getElementById('speed-select');
       listeningSpeed = parseFloat(select.value);
+      // Re-estimate duration with new speed
+      if (currentListeningText) {
+        estimateAudioDuration();
+      }
     }
 
     function changeDifficulty() {
