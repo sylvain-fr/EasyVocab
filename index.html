@@ -471,6 +471,36 @@
           </div>
         </div>
 
+        <!-- AI Prompt Preview (Edit Mode Only) -->
+        <div id="prompt-preview-section" class="listening-edit-only hidden mt-6">
+          <button onclick="togglePromptPreview()" class="w-full mb-3 px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 rounded-lg text-left flex items-center justify-between transition-colors border border-purple-700">
+            <span class="text-sm font-medium text-purple-200">
+              <i class="fa-solid fa-code mr-2"></i>View AI Prompt (Copy & Paste to Gemini/ChatGPT)
+            </span>
+            <i class="fa-solid fa-chevron-down text-purple-400" id="prompt-expand-icon"></i>
+          </button>
+          <div id="prompt-preview-content" class="hidden bg-slate-950 rounded-xl border border-purple-700 overflow-hidden">
+            <div class="bg-purple-900/20 px-4 py-2 border-b border-purple-700 flex items-center justify-between">
+              <span class="text-xs text-purple-300 font-medium">
+                <i class="fa-solid fa-info-circle mr-1"></i>This is the exact prompt sent to the AI API
+              </span>
+              <button onclick="copyPromptToClipboard()" class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg transition-colors">
+                <i class="fa-solid fa-copy mr-1"></i>Copy
+              </button>
+            </div>
+            <div class="p-6">
+              <div class="mb-4">
+                <div class="text-xs font-bold text-purple-400 mb-2">SYSTEM PROMPT:</div>
+                <pre id="system-prompt-display" class="bg-slate-900 p-4 rounded-lg text-xs text-slate-300 overflow-x-auto leading-relaxed border border-slate-700"></pre>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-purple-400 mb-2">USER PROMPT:</div>
+                <pre id="user-prompt-display" class="bg-slate-900 p-4 rounded-lg text-xs text-slate-300 overflow-x-auto leading-relaxed border border-slate-700"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Progressive Transcription (During Playback) -->
         <div id="progressive-transcription" class="listening-mode-only mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
           <button onclick="toggleProgressivePanel()" class="w-full px-6 py-3 flex items-center justify-between hover:bg-slate-800/80 transition-colors">
@@ -1825,6 +1855,12 @@ ${vocabularyList}
 
 Write a natural, engaging ${guide.length} story at ${difficulty} level using ALL these words. Make it feel like a real story, not a vocabulary list.`;
 
+      // Display prompts in the preview section for copy/paste
+      const systemPromptDisplay = document.getElementById('system-prompt-display');
+      const userPromptDisplay = document.getElementById('user-prompt-display');
+      if (systemPromptDisplay) systemPromptDisplay.textContent = systemPrompt;
+      if (userPromptDisplay) userPromptDisplay.textContent = userPrompt;
+
       try {
         // Try OpenAI API first (better quality, requires API key)
         const OPENAI_API_KEY = localStorage.getItem('openai_api_key');
@@ -2224,6 +2260,32 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level using ALL
         content.classList.add('hidden');
         icon.className = 'fa-solid fa-chevron-down';
       }
+    }
+
+    function togglePromptPreview() {
+      const content = document.getElementById('prompt-preview-content');
+      const icon = document.getElementById('prompt-expand-icon');
+
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.className = 'fa-solid fa-chevron-up text-purple-400';
+      } else {
+        content.classList.add('hidden');
+        icon.className = 'fa-solid fa-chevron-down text-purple-400';
+      }
+    }
+
+    function copyPromptToClipboard() {
+      const systemPrompt = document.getElementById('system-prompt-display').textContent;
+      const userPrompt = document.getElementById('user-prompt-display').textContent;
+      const fullPrompt = `SYSTEM:\n${systemPrompt}\n\nUSER:\n${userPrompt}`;
+
+      navigator.clipboard.writeText(fullPrompt).then(() => {
+        alert('✅ Prompt copied to clipboard!\n\nYou can now paste it into:\n• Gemini (https://gemini.google.com)\n• ChatGPT (https://chat.openai.com)\n• Any AI chat');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('❌ Failed to copy. Please select and copy manually.');
+      });
     }
 
     function toggleAudioPlayback() {
