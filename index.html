@@ -1417,6 +1417,12 @@
       const list = userLists[activeListName] || [];
       document.getElementById('word-count').innerText = list.length;
 
+      // Check "Select All" checkbox by default
+      const selectAllCheckbox = document.getElementById('select-all-checkbox');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = true;
+      }
+
       list.forEach((item, idx) => {
         const isSelected = idx === selectedWordIndex;
         const readonly = isEditMode ? '' : 'readonly';
@@ -1450,6 +1456,7 @@
               data-word-index="${idx}"
               onchange="updatePracticeSelection()"
               onclick="event.stopPropagation()"
+              checked
               title="Select for practice">
           </td>
           <!-- English Input (FIRST - with hide/show) -->
