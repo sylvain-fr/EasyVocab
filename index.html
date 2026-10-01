@@ -904,7 +904,7 @@
         document.querySelectorAll('.show-mode-only').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.edit-mode-only').forEach(el => el.classList.remove('hidden'));
       } else {
-        // Read only mode
+        // Read only mode (Save was clicked)
         editBtn.innerHTML = '<i class="fa-solid fa-pencil"></i><span class="hidden sm:inline">Edit</span><span class="sm:hidden">Edit</span>';
         editBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'border-emerald-600');
         editBtn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-200', 'border-slate-600');
@@ -915,6 +915,12 @@
         // Update table header and hide edit-mode-only buttons
         document.querySelectorAll('.show-mode-only').forEach(el => el.classList.remove('hidden'));
         document.querySelectorAll('.edit-mode-only').forEach(el => el.classList.add('hidden'));
+
+        // Regenerate listening practice text if we have a current text
+        // This ensures listening practice reflects the updated vocabulary
+        if (currentListeningText && currentView === 'listening') {
+          generateListeningText();
+        }
       }
 
       renderVocabTable();
@@ -1147,6 +1153,9 @@
 
       Object.keys(userLists).forEach(listName => {
         const isActive = listName === activeListName;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative group';
+
         const btn = document.createElement('button');
         btn.className = `w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-between ${
           isActive
@@ -1165,10 +1174,22 @@
         };
 
         btn.innerHTML = `
-          <span class="truncate">${escapeHtml(listName)}</span>
+          <span class="truncate pr-6">${escapeHtml(listName)}</span>
           <span class="text-xs px-2 py-0.5 rounded-full ml-2 ${isActive ? 'bg-brand-700 text-white' : 'bg-slate-700 text-slate-300'}">${userLists[listName].length}</span>
         `;
-        container.appendChild(btn);
+
+        // Add delete button (only show on hover)
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'absolute right-12 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white';
+        deleteBtn.innerHTML = '<i class="fa-solid fa-trash text-xs"></i>';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation(); // Prevent switching to this list
+          deleteList(listName);
+        };
+
+        wrapper.appendChild(btn);
+        wrapper.appendChild(deleteBtn);
+        container.appendChild(wrapper);
       });
 
       // Also render listening list selector
@@ -1276,6 +1297,47 @@
       renderListTabs()
       renderVocabTable()
       updateListCount()
+    }
+
+    async function deleteList(listName) {
+      // Prevent deleting the last list
+      if (Object.keys(userLists).length <= 1) {
+        alert('Cannot delete the last list. You must have at least one word list.');
+        return;
+      }
+
+      // Confirm deletion
+      const confirmed = confirm(`Are you sure you want to delete "${listName}"?\n\nThis will permanently delete ${userLists[listName].length} words and cannot be undone.`);
+      if (!confirmed) return;
+
+      // Delete from Supabase database
+      const { error } = await supabaseClient
+        .from('vocabulary_lists')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('name', listName);
+
+      if (error) {
+        alert('Error deleting list: ' + error.message);
+        return;
+      }
+
+      // Remove from local state
+      delete userLists[listName];
+
+      // Remove from selectedListsForListening if present
+      selectedListsForListening = selectedListsForListening.filter(ln => ln !== listName);
+
+      // Switch to first available list if we deleted the active one
+      if (activeListName === listName) {
+        activeListName = Object.keys(userLists)[0];
+        selectedWordIndex = 0;
+      }
+
+      renderListTabs();
+      renderVocabTable();
+      renderPrintableWorksheet();
+      updateListCount();
     }
 
     function renderVocabTable() {
@@ -1866,7 +1928,15 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         updateListeningWordCount();
       } catch (error) {
         console.error('Error generating text:', error);
-        alert('Error generating text. Please try again.');
+
+        // Show specific error message based on error type
+        if (error.message === 'NO_API_KEY') {
+          alert('❌ No AI API key configured!\n\nPlease add your OpenAI or Google Gemini API key:\n1. Click "AI Settings" button\n2. Enter your API key\n3. Click "Save"\n\nTo get an API key:\n• OpenAI: https://platform.openai.com/api-keys\n• Google Gemini: https://aistudio.google.com/app/apikey');
+        } else if (error.message && error.message.includes('API failed')) {
+          alert('❌ AI API Error\n\n' + error.message + '\n\nPossible reasons:\n• Invalid API key\n• Network connection issue\n• API service temporarily unavailable\n• Rate limit exceeded\n\nPlease check your API key in AI Settings and try again.');
+        } else {
+          alert('❌ Error generating text\n\n' + (error.message || 'Unknown error') + '\n\nPlease try again or check your API key configuration.');
+        }
       } finally {
         // Restore button
         if (generateBtn) {
@@ -2074,15 +2144,14 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
           }
         }
 
-        // No API key configured
-        console.warn('⚠️ No AI API key configured. Using template fallback.');
-        throw new Error('No API key configured');
+        // No API key configured - throw error instead of using fallback
+        console.warn('⚠️ No AI API key configured');
+        throw new Error('NO_API_KEY');
 
       } catch (error) {
         console.error('Error calling AI API:', error);
-        console.log('Falling back to template-based generation');
-        // Fallback to template-based generation
-        return createTextFromWords(words, difficulty);
+        // Re-throw the error to be handled by caller
+        throw error;
       }
     }
 
