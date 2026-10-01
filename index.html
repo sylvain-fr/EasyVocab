@@ -199,8 +199,10 @@
             </button>
             <select id="practice-filter" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600" title="Filter words to practice">
               <option value="all">All Words</option>
-              <option value="failed">Failed (&lt;70%)</option>
-              <option value="unscored">Not Practiced</option>
+              <option value="95">Score &lt;95%</option>
+              <option value="90">Score &lt;90%</option>
+              <option value="80">Score &lt;80%</option>
+              <option value="70">Score &lt;70%</option>
             </select>
             <button onclick="deleteActiveList()" id="delete-list-btn" class="px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 transition-all bg-red-600 hover:bg-red-700 text-white border border-red-600" title="Delete current word list">
               <i class="fa-solid fa-trash"></i>
@@ -409,6 +411,9 @@
           <table class="w-full text-left border-collapse">
             <thead class="bg-slate-800 text-slate-300 text-xs font-semibold uppercase tracking-wider sticky top-0 z-10">
               <tr>
+                <th class="py-3 px-3 w-10 text-center show-mode-only">
+                  <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()" class="cursor-pointer" title="Select all">
+                </th>
                 <th class="py-3 px-3">English Word</th>
                 <th class="py-3 px-3">French Translation</th>
                 <th class="py-3 px-3">Context Sentence</th>
@@ -1438,6 +1443,15 @@
         tr.onclick = () => selectWord(idx);
 
         tr.innerHTML = `
+          <!-- Checkbox for practice selection (show mode only) -->
+          <td class="py-2.5 px-3 text-center show-mode-only">
+            <input type="checkbox"
+              class="practice-checkbox cursor-pointer"
+              data-word-index="${idx}"
+              onchange="updatePracticeSelection()"
+              onclick="event.stopPropagation()"
+              title="Select for practice">
+          </td>
           <!-- English Input (FIRST - with hide/show) -->
           <td class="py-2.5 px-3 transition-opacity duration-300">
             <div class="flex flex-col gap-1">
@@ -3003,26 +3017,34 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       isPracticing = true;
       practiceIndex = 0;
 
-      // Get filtered word list
-      const filter = document.getElementById('practice-filter').value;
+      // Check if any words are manually selected via checkboxes
+      const selectedCheckboxes = document.querySelectorAll('.practice-checkbox:checked');
       const allWords = userLists[activeListName] || [];
 
-      if (filter === 'all') {
-        practiceWordsList = allWords.filter(w => w.en && w.en.trim() !== '');
-      } else if (filter === 'failed') {
-        practiceWordsList = allWords.filter(w =>
-          w.en && w.en.trim() !== '' &&
-          w.practiceScore !== undefined && w.practiceScore !== null && w.practiceScore < 70
-        );
-      } else if (filter === 'unscored') {
-        practiceWordsList = allWords.filter(w =>
-          w.en && w.en.trim() !== '' &&
-          (w.practiceScore === undefined || w.practiceScore === null)
-        );
+      if (selectedCheckboxes.length > 0) {
+        // Use manually selected words
+        const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.dataset.wordIndex));
+        practiceWordsList = selectedIndices.map(idx => allWords[idx]).filter(w => w && w.en && w.en.trim() !== '');
+      } else {
+        // Use filter dropdown
+        const filter = document.getElementById('practice-filter').value;
+
+        if (filter === 'all') {
+          practiceWordsList = allWords.filter(w => w.en && w.en.trim() !== '');
+        } else {
+          // Score-based filters: '95', '90', '80', '70'
+          const scoreThreshold = parseInt(filter);
+          practiceWordsList = allWords.filter(w =>
+            w.en && w.en.trim() !== '' &&
+            w.practiceScore !== undefined && w.practiceScore !== null && w.practiceScore < scoreThreshold
+          );
+        }
       }
 
       if (practiceWordsList.length === 0) {
-        alert(`No words to practice with "${filter === 'all' ? 'All Words' : filter === 'failed' ? 'Failed (<70%)' : 'Not Practiced'}" filter!`);
+        const filter = document.getElementById('practice-filter').value;
+        const filterLabel = filter === 'all' ? 'All Words' : `Score <${filter}%`;
+        alert(`❌ No words to practice!\n\n${selectedCheckboxes.length > 0 ? 'No valid words selected.' : `No words match "${filterLabel}" filter.`}\n\nTip: Select specific words using checkboxes, or choose a different filter.`);
         return;
       }
 
@@ -3347,6 +3369,32 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         }
 
         renderVocabTable();
+      }
+    }
+
+    // Toggle select all checkboxes
+    function toggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('select-all-checkbox');
+      const checkboxes = document.querySelectorAll('.practice-checkbox');
+
+      checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+      });
+
+      updatePracticeSelection();
+    }
+
+    // Update practice selection count
+    function updatePracticeSelection() {
+      const selectedCount = document.querySelectorAll('.practice-checkbox:checked').length;
+
+      // Update select-all checkbox state
+      const selectAllCheckbox = document.getElementById('select-all-checkbox');
+      const allCheckboxes = document.querySelectorAll('.practice-checkbox');
+
+      if (selectAllCheckbox && allCheckboxes.length > 0) {
+        selectAllCheckbox.checked = selectedCount === allCheckboxes.length;
+        selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < allCheckboxes.length;
       }
     }
 
