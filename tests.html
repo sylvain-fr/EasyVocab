@@ -41,6 +41,94 @@
       border-left-color: #f59e0b;
       background: #78350f;
     }
+    .test-details {
+      margin-top: 10px;
+      padding: 10px;
+      background: #1e293b;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .test-input {
+      color: #38bdf8;
+      margin-bottom: 8px;
+    }
+    .test-output {
+      color: #a78bfa;
+      margin-top: 8px;
+    }
+    .word-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .word-tag {
+      background: #334155;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #e2e8f0;
+    }
+    .generated-text {
+      margin-top: 4px;
+      padding: 8px;
+      background: #0f172a;
+      border-radius: 4px;
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .quality-check {
+      margin-top: 15px;
+      padding: 12px;
+      background: #1e293b;
+      border-radius: 4px;
+      border-left: 4px solid #8b5cf6;
+    }
+    .quality-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #334155;
+    }
+    .quality-item:last-child {
+      border-bottom: none;
+    }
+    .quality-label {
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+    .quality-score {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    .quality-score.excellent {
+      background: #064e3b;
+      color: #10b981;
+    }
+    .quality-score.good {
+      background: #365314;
+      color: #84cc16;
+    }
+    .quality-score.fair {
+      background: #78350f;
+      color: #f59e0b;
+    }
+    .quality-score.poor {
+      background: #7f1d1d;
+      color: #ef4444;
+    }
+    .overall-quality {
+      margin-top: 12px;
+      padding: 12px;
+      background: #0f172a;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+    }
     .summary {
       background: #1e293b;
       padding: 20px;
@@ -82,10 +170,63 @@
 <body>
   <h1>🧪 EasyVocab Automated Tests</h1>
 
-  <button id="run-tests" onclick="runAllTests()">Run All Tests</button>
+  <div class="test-suite">
+    <h2>🎯 Interactive Text Generation Tester</h2>
+    <p style="color: #94a3b8; margin-bottom: 20px;">Generate stories with your own words and see the output</p>
 
-  <div id="test-results"></div>
-  <div id="summary"></div>
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; color: #cbd5e1;">Enter words (comma-separated):</label>
+      <input type="text" id="custom-words"
+             placeholder="coffee, morning, blue, happy"
+             style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; font-size: 14px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; color: #cbd5e1;">Difficulty Level:</label>
+      <select id="difficulty-level" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; font-size: 14px;">
+        <option value="A1">A1 - Beginner</option>
+        <option value="A2">A2 - Elementary</option>
+        <option value="B1">B1 - Intermediate</option>
+        <option value="B2" selected>B2 - Upper Intermediate</option>
+        <option value="C1">C1 - Advanced</option>
+        <option value="C2">C2 - Proficient</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; color: #cbd5e1;">AI Provider:</label>
+      <select id="ai-provider" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; font-size: 14px;">
+        <option value="mock">Mock (No API Key needed)</option>
+        <option value="openai">OpenAI GPT-4</option>
+        <option value="gemini">Google Gemini</option>
+      </select>
+    </div>
+
+    <div id="api-key-section" style="margin-bottom: 15px; display: none;">
+      <label style="display: block; margin-bottom: 5px; color: #cbd5e1;">API Key:</label>
+      <input type="password" id="api-key"
+             placeholder="Enter your API key"
+             style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; font-size: 14px;">
+      <small style="color: #64748b;">Your key is only stored in browser memory and never sent to our servers</small>
+    </div>
+
+    <button onclick="generateCustomStory()" style="width: 100%; margin-bottom: 10px;">
+      🎨 Generate Story
+    </button>
+
+    <button onclick="generateMultipleVariations()" style="width: 100%; background: #8b5cf6;">
+      🔄 Generate 3 Variations
+    </button>
+
+    <div id="generation-results"></div>
+  </div>
+
+  <div class="test-suite">
+    <h2>🧪 Automated Test Suite</h2>
+    <button id="run-tests" onclick="runAllTests()">Run All Tests</button>
+    <div id="test-results"></div>
+    <div id="summary"></div>
+  </div>
 
   <script>
     // Test Framework
@@ -115,18 +256,63 @@
 
           try {
             testEl.className = 'test-case running';
-            await test.fn();
+            const result = await test.fn();
             testEl.className = 'test-case pass';
-            testEl.innerHTML = `✅ ${test.name}`;
+
+            let detailsHtml = '';
+            if (result && result.details) {
+              detailsHtml = this.formatDetails(result.details);
+            }
+
+            testEl.innerHTML = `✅ ${test.name}${detailsHtml}`;
             this.results.passed++;
           } catch (error) {
             testEl.className = 'test-case fail';
-            testEl.innerHTML = `❌ ${test.name}<div class="error-details">${error.message}</div>`;
+            let detailsHtml = '';
+            if (error.details) {
+              detailsHtml = this.formatDetails(error.details);
+            }
+            testEl.innerHTML = `❌ ${test.name}${detailsHtml}<div class="error-details">${error.message}</div>`;
             this.results.failed++;
           }
         }
 
         this.showSummary();
+      }
+
+      formatDetails(details) {
+        let html = '<div class="test-details">';
+
+        if (details.input) {
+          html += '<div class="test-input"><strong>Input:</strong> ';
+          if (Array.isArray(details.input)) {
+            html += '<div class="word-list">';
+            details.input.forEach(word => {
+              html += `<span class="word-tag">${word}</span>`;
+            });
+            html += '</div>';
+          } else {
+            html += details.input;
+          }
+          html += '</div>';
+        }
+
+        if (details.output) {
+          html += '<div class="test-output"><strong>Generated:</strong>';
+          html += `<div class="generated-text">${details.output}</div>`;
+          html += '</div>';
+        }
+
+        if (details.translation) {
+          html += `<div class="test-output"><strong>Translation:</strong> ${details.translation}</div>`;
+        }
+
+        if (details.difficulty) {
+          html += `<div class="test-input"><strong>Difficulty:</strong> ${details.difficulty}</div>`;
+        }
+
+        html += '</div>';
+        return html;
       }
 
       createTestElement(name) {
@@ -173,25 +359,41 @@
     // ========================================================================
 
     runner.test('Translation API: Should translate "hello" to French', async () => {
-      const response = await fetch(`https://api.mymemory.translated.net/get?q=hello&langpair=en|fr`);
+      const word = 'hello';
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|fr`);
       assert(response.ok, 'API request failed');
 
       const data = await response.json();
       assert(data.responseData, 'No response data');
 
-      const translation = data.responseData.translatedText.toLowerCase();
-      assert(translation.includes('bonjour') || translation.includes('salut'),
+      const translation = data.responseData.translatedText;
+      assert(translation.toLowerCase().includes('bonjour') || translation.toLowerCase().includes('salut'),
         `Translation "${translation}" doesn't match expected French greeting`);
+
+      return {
+        details: {
+          input: word,
+          translation: translation
+        }
+      };
     });
 
     runner.test('Translation API: Should translate "coffee" to French', async () => {
-      const response = await fetch(`https://api.mymemory.translated.net/get?q=coffee&langpair=en|fr`);
+      const word = 'coffee';
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|fr`);
       assert(response.ok, 'API request failed');
 
       const data = await response.json();
-      const translation = data.responseData.translatedText.toLowerCase();
-      assert(translation.includes('café'),
+      const translation = data.responseData.translatedText;
+      assert(translation.toLowerCase().includes('café'),
         `Translation "${translation}" doesn't contain "café"`);
+
+      return {
+        details: {
+          input: word,
+          translation: translation
+        }
+      };
     });
 
     runner.test('Translation API: Should handle phrase translation', async () => {
@@ -200,10 +402,17 @@
       assert(response.ok, 'API request failed');
 
       const data = await response.json();
-      const translation = data.responseData.translatedText.toLowerCase();
+      const translation = data.responseData.translatedText;
       assert(translation.length > 0, 'Empty translation');
-      assert(translation.includes('bonjour'),
+      assert(translation.toLowerCase().includes('bonjour'),
         `Phrase translation "${translation}" doesn't contain "bonjour"`);
+
+      return {
+        details: {
+          input: phrase,
+          translation: translation
+        }
+      };
     });
 
     runner.test('Translation API: Should handle API errors gracefully', async () => {
@@ -245,6 +454,14 @@
       assertContains(prompt, 'coffee', 'Prompt should include word: coffee');
       assertContains(prompt, 'blue', 'Prompt should include word: blue');
       assertContains(prompt, 'Present simple', 'A1 should use present simple');
+
+      return {
+        details: {
+          input: words,
+          difficulty: difficulty,
+          output: prompt
+        }
+      };
     });
 
     runner.test('Text Generation: Should build proper prompt for B2 level', () => {
@@ -256,6 +473,14 @@
       assertContains(prompt, 'B2', 'Prompt should mention B2 level');
       assertContains(prompt, 'Conditionals', 'B2 should mention conditionals');
       assertContains(prompt, 'passive voice', 'B2 should mention passive voice');
+
+      return {
+        details: {
+          input: words,
+          difficulty: difficulty,
+          output: prompt
+        }
+      };
     });
 
     runner.test('Text Generation: Should handle empty word list', () => {
@@ -282,6 +507,13 @@
       words.forEach(word => {
         assertContains(story, word, `Story should contain word: ${word}`);
       });
+
+      return {
+        details: {
+          input: words,
+          output: story
+        }
+      };
     });
 
     runner.test('Text Generation: Temperature should be creative (0.7)', () => {
@@ -340,9 +572,511 @@ ${vocabularyList}`;
       button.textContent = 'Run All Tests Again';
     }
 
+    // ========================================================================
+    // INTERACTIVE TEXT GENERATION
+    // ========================================================================
+
+    // Show/hide API key field based on provider selection
+    document.addEventListener('DOMContentLoaded', () => {
+      const providerSelect = document.getElementById('ai-provider');
+      const apiKeySection = document.getElementById('api-key-section');
+
+      providerSelect.addEventListener('change', () => {
+        if (providerSelect.value === 'mock') {
+          apiKeySection.style.display = 'none';
+        } else {
+          apiKeySection.style.display = 'block';
+        }
+      });
+    });
+
+    async function generateCustomStory() {
+      const wordsInput = document.getElementById('custom-words').value.trim();
+      const difficulty = document.getElementById('difficulty-level').value;
+      const provider = document.getElementById('ai-provider').value;
+      const apiKey = document.getElementById('api-key').value;
+
+      if (!wordsInput) {
+        alert('Please enter some words!');
+        return;
+      }
+
+      const words = wordsInput.split(',').map(w => w.trim()).filter(w => w);
+
+      const resultsDiv = document.getElementById('generation-results');
+      resultsDiv.innerHTML = '<div style="padding: 20px; color: #f59e0b;">⏳ Generating story...</div>';
+
+      try {
+        const story = await generateStory(words, difficulty, provider, apiKey);
+        displayGenerationResult(words, difficulty, story, provider);
+      } catch (error) {
+        resultsDiv.innerHTML = `<div class="error-details">Error: ${error.message}</div>`;
+      }
+    }
+
+    async function generateMultipleVariations() {
+      const wordsInput = document.getElementById('custom-words').value.trim();
+      const difficulty = document.getElementById('difficulty-level').value;
+      const provider = document.getElementById('ai-provider').value;
+      const apiKey = document.getElementById('api-key').value;
+
+      if (!wordsInput) {
+        alert('Please enter some words!');
+        return;
+      }
+
+      const words = wordsInput.split(',').map(w => w.trim()).filter(w => w);
+
+      const resultsDiv = document.getElementById('generation-results');
+      resultsDiv.innerHTML = '<div style="padding: 20px; color: #f59e0b;">⏳ Generating 3 variations...</div>';
+
+      try {
+        const variations = await Promise.all([
+          generateStory(words, difficulty, provider, apiKey),
+          generateStory(words, difficulty, provider, apiKey),
+          generateStory(words, difficulty, provider, apiKey)
+        ]);
+
+        displayMultipleResults(words, difficulty, variations, provider);
+      } catch (error) {
+        resultsDiv.innerHTML = `<div class="error-details">Error: ${error.message}</div>`;
+      }
+    }
+
+    async function generateStory(words, difficulty, provider, apiKey) {
+      if (provider === 'mock') {
+        // Mock generation for testing without API keys
+        return generateMockStory(words, difficulty);
+      } else if (provider === 'openai') {
+        return await generateWithOpenAI(words, difficulty, apiKey);
+      } else if (provider === 'gemini') {
+        return await generateWithGemini(words, difficulty, apiKey);
+      }
+    }
+
+    function generateMockStory(words, difficulty) {
+      const templates = {
+        'A1': [
+          `I like ${words[0]}. It is ${words[1] || 'nice'}. I am ${words[2] || 'happy'}.`,
+          `This is ${words[0]}. ${words[1] || 'Today'} is good. I see ${words[2] || 'something'}.`,
+          `My ${words[0]} is here. I have ${words[1] || 'time'}. We are ${words[2] || 'together'}.`
+        ],
+        'A2': [
+          `Yesterday, I had ${words[0]}. It was very ${words[1] || 'interesting'}. I felt ${words[2] || 'happy'} about it.`,
+          `I always enjoy ${words[0]}. When I see ${words[1] || 'something nice'}, I feel ${words[2] || 'excited'}.`,
+          `Last week, I tried ${words[0]}. My friend said it was ${words[1] || 'wonderful'}. We both felt ${words[2] || 'glad'}.`
+        ],
+        'B1': [
+          `I've been thinking about ${words[0]} lately. Although ${words[1] || 'it seems simple'}, it has helped me become ${words[2] || 'more confident'}.`,
+          `When I discovered ${words[0]}, I realized that ${words[1] || 'life could be different'}. Now I feel ${words[2] || 'more fulfilled'}.`,
+          `If I could choose, I would pick ${words[0]}. However, ${words[1] || 'many things are uncertain'}. Still, I remain ${words[2] || 'optimistic'}.`
+        ],
+        'B2': [
+          `Despite initial reservations about ${words[0]}, I've come to appreciate how ${words[1] || 'it challenges conventional thinking'}. Consequently, I've become ${words[2] || 'more open-minded'}.`,
+          `Had I known about ${words[0]} earlier, I would have ${words[1] || 'approached things differently'}. Nevertheless, the experience has made me ${words[2] || 'wiser'}.`,
+          `The significance of ${words[0]} cannot be overstated. Moreover, ${words[1] || 'its implications are far-reaching'}, which has rendered me ${words[2] || 'more contemplative'}.`
+        ],
+        'C1': [
+          `The intricate relationship between ${words[0]} and modern society warrants careful consideration. Furthermore, ${words[1] || 'prevailing attitudes'} suggest a paradigm shift, leaving observers ${words[2] || 'increasingly uncertain'}.`,
+          `Notwithstanding the complexities inherent in ${words[0]}, it is imperative that ${words[1] || 'we scrutinize underlying assumptions'}. This endeavor has rendered scholars ${words[2] || 'profoundly reflective'}.`,
+          `In light of recent developments concerning ${words[0]}, one might argue that ${words[1] || 'established frameworks require reevaluation'}. Such realizations have left experts ${words[2] || 'deeply concerned'}.`
+        ],
+        'C2': [
+          `The epistemological implications of ${words[0]} transcend mere academic discourse, necessitating a comprehensive reexamination of ${words[1] || 'foundational presuppositions'}. This intellectual trajectory has rendered contemporary theorists ${words[2] || 'profoundly ambivalent'}.`,
+          `Were one to interrogate the philosophical underpinnings of ${words[0]}, the resultant analysis would inevitably reveal that ${words[1] || 'conventional paradigms are fundamentally inadequate'}. Such revelations have left the intelligentsia ${words[2] || 'markedly perplexed'}.`,
+          `The dialectical tension between ${words[0]} and established ontological frameworks belies a more nuanced understanding wherein ${words[1] || 'binary categorizations prove insufficient'}. This recognition has made scholars ${words[2] || 'increasingly circumspect'}.`
+        ]
+      };
+
+      const levelTemplates = templates[difficulty] || templates['B2'];
+      const randomIndex = Math.floor(Math.random() * levelTemplates.length);
+      return levelTemplates[randomIndex];
+    }
+
+    async function generateWithOpenAI(words, difficulty, apiKey) {
+      if (!apiKey || !apiKey.startsWith('sk-')) {
+        throw new Error('Invalid OpenAI API key. Must start with "sk-"');
+      }
+
+      const prompt = buildPromptForAI(words, difficulty);
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a language learning assistant that creates stories at specific CEFR levels.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
+    }
+
+    async function generateWithGemini(words, difficulty, apiKey) {
+      if (!apiKey || !apiKey.startsWith('AIza')) {
+        throw new Error('Invalid Gemini API key. Must start with "AIza"');
+      }
+
+      const prompt = buildPromptForAI(words, difficulty);
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 800
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Gemini API error: ${error.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text.trim();
+    }
+
+    function buildPromptForAI(words, difficulty) {
+      const cefrGuidelines = {
+        'A1': { grammar: 'Present simple, basic nouns/verbs', sentences: 'Very short (3-6 words), simple sentences' },
+        'A2': { grammar: 'Present simple, past simple, basic conjunctions', sentences: 'Short sentences (5-10 words)' },
+        'B1': { grammar: 'Present perfect, conditionals, phrasal verbs', sentences: 'Medium complexity' },
+        'B2': { grammar: 'Conditionals, passive voice, past progressive, complex structures', sentences: 'Varied and complex' },
+        'C1': { grammar: 'Advanced structures, subjunctive, inversion, sophisticated linking', sentences: 'Sophisticated and nuanced' },
+        'C2': { grammar: 'Full range of grammatical structures, idiomatic expressions', sentences: 'Native-like complexity' }
+      };
+
+      const guide = cefrGuidelines[difficulty];
+      const vocabularyList = words.map((w, i) => `${i + 1}. ${w}`).join('\n');
+
+      return `Create a short story (3-4 sentences) at CEFR level ${difficulty} using ALL of these words:
+
+${vocabularyList}
+
+Guidelines for ${difficulty}:
+- Grammar: ${guide.grammar}
+- Sentence structure: ${guide.sentences}
+
+Requirements:
+- Use ALL words naturally in context
+- Match the ${difficulty} difficulty level precisely
+- Make the story coherent and interesting
+- Return ONLY the story, no explanations`;
+    }
+
+    function displayGenerationResult(words, difficulty, story, provider) {
+      const qualityAnalysis = analyzeTextQuality(story, words, difficulty);
+      const resultsDiv = document.getElementById('generation-results');
+
+      resultsDiv.innerHTML = `
+        <div class="test-case pass" style="margin-top: 20px;">
+          <div style="font-weight: bold; margin-bottom: 10px;">✅ Story Generated Successfully</div>
+          <div class="test-details">
+            <div class="test-input">
+              <strong>Input Words:</strong>
+              <div class="word-list">
+                ${words.map(w => `<span class="word-tag">${w}</span>`).join('')}
+              </div>
+            </div>
+            <div class="test-input">
+              <strong>Difficulty:</strong> ${difficulty}
+            </div>
+            <div class="test-input">
+              <strong>Provider:</strong> ${provider === 'mock' ? 'Mock (Demo)' : provider.toUpperCase()}
+            </div>
+            <div class="test-output">
+              <strong>Generated Story:</strong>
+              <div class="generated-text">${story}</div>
+            </div>
+            ${renderQualityAnalysis(qualityAnalysis)}
+          </div>
+        </div>
+      `;
+    }
+
+    function displayMultipleResults(words, difficulty, variations, provider) {
+      const resultsDiv = document.getElementById('generation-results');
+      let html = `
+        <div style="margin-top: 20px;">
+          <div style="font-weight: bold; font-size: 18px; margin-bottom: 15px; color: #3b82f6;">
+            ✅ 3 Variations Generated
+          </div>
+          <div class="test-input" style="background: #1e293b; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+            <strong>Input Words:</strong>
+            <div class="word-list">
+              ${words.map(w => `<span class="word-tag">${w}</span>`).join('')}
+            </div>
+            <div style="margin-top: 8px;"><strong>Difficulty:</strong> ${difficulty}</div>
+            <div style="margin-top: 4px;"><strong>Provider:</strong> ${provider === 'mock' ? 'Mock (Demo)' : provider.toUpperCase()}</div>
+          </div>
+      `;
+
+      variations.forEach((story, index) => {
+        const qualityAnalysis = analyzeTextQuality(story, words, difficulty);
+        html += `
+          <div class="test-case pass" style="margin-bottom: 15px;">
+            <div style="font-weight: bold; margin-bottom: 10px;">📖 Variation ${index + 1}</div>
+            <div class="test-details">
+              <div class="test-output">
+                <div class="generated-text">${story}</div>
+              </div>
+              ${renderQualityAnalysis(qualityAnalysis)}
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      resultsDiv.innerHTML = html;
+    }
+
+    // ========================================================================
+    // TEXT QUALITY ANALYSIS
+    // ========================================================================
+
+    function analyzeTextQuality(text, words, difficulty) {
+      const analysis = {
+        wordUsage: checkWordUsage(text, words),
+        readability: checkReadability(text, difficulty),
+        coherence: checkCoherence(text),
+        grammaticalComplexity: checkGrammaticalComplexity(text, difficulty),
+        naturalness: checkNaturalness(text, words)
+      };
+
+      // Calculate overall score
+      const scores = Object.values(analysis).map(item => item.score);
+      analysis.overallScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+
+      return analysis;
+    }
+
+    function checkWordUsage(text, words) {
+      const textLower = text.toLowerCase();
+      const usedWords = words.filter(word => textLower.includes(word.toLowerCase()));
+      const percentage = (usedWords.length / words.length) * 100;
+
+      let score, label, message;
+      if (percentage === 100) {
+        score = 100;
+        label = 'excellent';
+        message = `All ${words.length} words used ✓`;
+      } else if (percentage >= 75) {
+        score = 75;
+        label = 'good';
+        message = `${usedWords.length}/${words.length} words used`;
+      } else if (percentage >= 50) {
+        score = 50;
+        label = 'fair';
+        message = `Only ${usedWords.length}/${words.length} words used`;
+      } else {
+        score = 25;
+        label = 'poor';
+        message = `Missing ${words.length - usedWords.length} words`;
+      }
+
+      return { score, label, message, details: { used: usedWords, missing: words.filter(w => !usedWords.includes(w)) } };
+    }
+
+    function checkReadability(text, difficulty) {
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim());
+      const wordCount = text.split(/\s+/).length;
+      const avgWordsPerSentence = wordCount / sentences.length;
+
+      const expectedRanges = {
+        'A1': [3, 6], 'A2': [5, 10], 'B1': [8, 15],
+        'B2': [10, 20], 'C1': [12, 25], 'C2': [15, 30]
+      };
+
+      const range = expectedRanges[difficulty] || [8, 20];
+      const [min, max] = range;
+
+      let score, label, message;
+      if (avgWordsPerSentence >= min && avgWordsPerSentence <= max) {
+        score = 100;
+        label = 'excellent';
+        message = `Avg ${avgWordsPerSentence.toFixed(1)} words/sentence (perfect for ${difficulty})`;
+      } else if (avgWordsPerSentence >= min * 0.8 && avgWordsPerSentence <= max * 1.2) {
+        score = 75;
+        label = 'good';
+        message = `Avg ${avgWordsPerSentence.toFixed(1)} words/sentence (acceptable)`;
+      } else {
+        score = 50;
+        label = 'fair';
+        message = `Avg ${avgWordsPerSentence.toFixed(1)} words/sentence (expected ${min}-${max})`;
+      }
+
+      return { score, label, message };
+    }
+
+    function checkCoherence(text) {
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim());
+
+      // Check for basic coherence markers
+      const connectors = ['and', 'but', 'however', 'therefore', 'moreover', 'furthermore',
+                         'although', 'because', 'since', 'while', 'when', 'if', 'so'];
+      const hasConnectors = connectors.some(c => text.toLowerCase().includes(c));
+
+      // Check if sentences seem connected
+      const hasPronouns = /\b(it|he|she|they|this|that|these|those)\b/i.test(text);
+
+      let score, label, message;
+      if (hasConnectors && hasPronouns) {
+        score = 100;
+        label = 'excellent';
+        message = 'Well-connected, coherent narrative';
+      } else if (hasConnectors || hasPronouns) {
+        score = 75;
+        label = 'good';
+        message = 'Reasonably coherent';
+      } else if (sentences.length > 1) {
+        score = 50;
+        label = 'fair';
+        message = 'Sentences could be better connected';
+      } else {
+        score = 60;
+        label = 'fair';
+        message = 'Single sentence story';
+      }
+
+      return { score, label, message };
+    }
+
+    function checkGrammaticalComplexity(text, difficulty) {
+      const complexityMarkers = {
+        'A1': { markers: [], minExpected: 0 },
+        'A2': { markers: ['was', 'were', 'had'], minExpected: 1 },
+        'B1': { markers: ['have been', 'has been', 'would', 'could', 'should'], minExpected: 1 },
+        'B2': { markers: ['had been', 'would have', 'despite', 'although', 'whereas'], minExpected: 1 },
+        'C1': { markers: ['notwithstanding', 'whereby', 'insofar', 'albeit'], minExpected: 1 },
+        'C2': { markers: ['were one to', 'had it not been', 'lest', 'hitherto'], minExpected: 1 }
+      };
+
+      const expected = complexityMarkers[difficulty] || complexityMarkers['B2'];
+      const textLower = text.toLowerCase();
+      const foundMarkers = expected.markers.filter(m => textLower.includes(m));
+
+      let score, label, message;
+      if (foundMarkers.length >= expected.minExpected || difficulty === 'A1') {
+        score = 100;
+        label = 'excellent';
+        message = `Appropriate complexity for ${difficulty} level`;
+      } else {
+        score = 70;
+        label = 'good';
+        message = `Could use more ${difficulty}-level structures`;
+      }
+
+      return { score, label, message };
+    }
+
+    function checkNaturalness(text, words) {
+      // Check if words are used naturally (not just listed)
+      const wordsPattern = words.map(w => w.toLowerCase()).join('|');
+      const regex = new RegExp(`\\b(${wordsPattern})\\b`, 'gi');
+      const matches = text.match(regex) || [];
+
+      // Check for unnatural patterns
+      const hasListPattern = /\b\w+,\s*\w+,\s*(and|or)\s*\w+/.test(text);
+      const wordDensity = matches.length / text.split(/\s+/).length;
+
+      let score, label, message;
+      if (wordDensity <= 0.3 && !hasListPattern) {
+        score = 100;
+        label = 'excellent';
+        message = 'Words used naturally in context';
+      } else if (wordDensity <= 0.5) {
+        score = 75;
+        label = 'good';
+        message = 'Mostly natural usage';
+      } else {
+        score = 50;
+        label = 'fair';
+        message = 'Words feel forced or listed';
+      }
+
+      return { score, label, message };
+    }
+
+    function renderQualityAnalysis(analysis) {
+      const getScoreClass = (score) => {
+        if (score >= 90) return 'excellent';
+        if (score >= 75) return 'good';
+        if (score >= 50) return 'fair';
+        return 'poor';
+      };
+
+      return `
+        <div class="quality-check">
+          <div style="font-weight: bold; margin-bottom: 12px; color: #a78bfa;">📊 Quality Analysis</div>
+
+          <div class="quality-item">
+            <span class="quality-label">Word Usage</span>
+            <span class="quality-score ${analysis.wordUsage.label}">${analysis.wordUsage.message}</span>
+          </div>
+
+          <div class="quality-item">
+            <span class="quality-label">Readability</span>
+            <span class="quality-score ${analysis.readability.label}">${analysis.readability.message}</span>
+          </div>
+
+          <div class="quality-item">
+            <span class="quality-label">Coherence</span>
+            <span class="quality-score ${analysis.coherence.label}">${analysis.coherence.message}</span>
+          </div>
+
+          <div class="quality-item">
+            <span class="quality-label">Complexity</span>
+            <span class="quality-score ${analysis.grammaticalComplexity.label}">${analysis.grammaticalComplexity.message}</span>
+          </div>
+
+          <div class="quality-item">
+            <span class="quality-label">Naturalness</span>
+            <span class="quality-score ${analysis.naturalness.label}">${analysis.naturalness.message}</span>
+          </div>
+
+          <div class="overall-quality">
+            <div style="color: #94a3b8; font-size: 14px; font-weight: normal;">Overall Quality Score</div>
+            <div class="quality-score ${getScoreClass(analysis.overallScore)}" style="display: inline-block; margin-top: 8px; font-size: 20px;">
+              ${analysis.overallScore}/100
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     // Auto-run tests on load
     window.addEventListener('load', () => {
-      console.log('Test page loaded. Click "Run All Tests" to start.');
+      console.log('Test page loaded. Try the interactive generator or run automated tests!');
     });
   </script>
 </body>
