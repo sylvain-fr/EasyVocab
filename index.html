@@ -1815,6 +1815,11 @@
       const guide = cefrGuidelines[difficulty] || cefrGuidelines['A2'];
       const vocabularyList = words.map((w, i) => `${i + 1}. ${w}`).join('\n');
 
+      // Build info about selected lists for context
+      const selectedListsInfo = selectedListsForListening && selectedListsForListening.length > 0
+        ? `\nSelected word lists: ${selectedListsForListening.join(', ')}\nTotal unique words: ${words.length}\n`
+        : '';
+
       const systemPrompt = `You are a professional English language teacher and creative writer specializing in CEFR-appropriate learning materials.
 
 Your task: Create an engaging, natural-sounding story that uses ALL the required vocabulary words.
@@ -1849,7 +1854,7 @@ Think step-by-step:
 4. Double-check that EVERY word from the list appears at least once`;
 
       const userPrompt = `CEFR Level: ${difficulty}
-
+${selectedListsInfo}
 Vocabulary words to include (MUST use every single one):
 ${vocabularyList}
 
