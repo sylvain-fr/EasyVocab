@@ -1822,10 +1822,10 @@
 
       const systemPrompt = `You are a professional English language teacher and creative writer specializing in CEFR-appropriate learning materials.
 
-Your task: Create an engaging, natural-sounding story that uses ALL the required vocabulary words.
+Your task: Create an engaging, natural-sounding story that incorporates vocabulary words from the provided list.
 
 CRITICAL REQUIREMENTS:
-1. **Every single word must appear** - Check your story before finishing to ensure EVERY word from the list is included at least once
+1. **Use most words from the list** - Most of the words in your story should come from the provided vocabulary list
 2. **Natural integration** - Words should fit naturally into the narrative, not feel forced or listed
 3. **Contextual appropriateness**:
    - Single words (e.g., "coffee", "blue") → integrate as part of sentences
@@ -1851,14 +1851,14 @@ Think step-by-step:
 1. Identify which words are single words vs phrases vs complete sentences
 2. Choose a realistic scenario that can naturally incorporate these words
 3. Write a coherent story that flows naturally
-4. Double-check that EVERY word from the list appears at least once`;
+4. Most of the words used should be picked from the input list`;
 
       const userPrompt = `CEFR Level: ${difficulty}
 ${selectedListsInfo}
-Vocabulary words to include (MUST use every single one):
+Vocabulary words to pick from (most words in your story should come from this list):
 ${vocabularyList}
 
-Write a natural, engaging ${guide.length} story at ${difficulty} level using ALL these words. Make it feel like a real story, not a vocabulary list.`;
+Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick most of your words from the list above. Make it feel like a real story, not a vocabulary exercise.`;
 
       // Display prompts in the preview section for copy/paste
       const systemPromptDisplay = document.getElementById('system-prompt-display');
