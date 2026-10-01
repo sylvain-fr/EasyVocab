@@ -197,7 +197,7 @@
               <span class="hidden sm:inline">Test Mode</span>
               <span class="sm:hidden">Test</span>
             </button>
-            <select id="practice-filter" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600" title="Filter words to practice">
+            <select id="practice-filter" onchange="applyPracticeFilter()" class="show-mode-only px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600" title="Auto-select words by filter">
               <option value="all">All Words</option>
               <option value="95">Score &lt;95%</option>
               <option value="90">Score &lt;90%</option>
@@ -3017,34 +3017,21 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       isPracticing = true;
       practiceIndex = 0;
 
-      // Check if any words are manually selected via checkboxes
+      // Get selected words from checkboxes (always use checkboxes)
       const selectedCheckboxes = document.querySelectorAll('.practice-checkbox:checked');
       const allWords = userLists[activeListName] || [];
 
-      if (selectedCheckboxes.length > 0) {
-        // Use manually selected words
-        const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.dataset.wordIndex));
-        practiceWordsList = selectedIndices.map(idx => allWords[idx]).filter(w => w && w.en && w.en.trim() !== '');
-      } else {
-        // Use filter dropdown
-        const filter = document.getElementById('practice-filter').value;
-
-        if (filter === 'all') {
-          practiceWordsList = allWords.filter(w => w.en && w.en.trim() !== '');
-        } else {
-          // Score-based filters: '95', '90', '80', '70'
-          const scoreThreshold = parseInt(filter);
-          practiceWordsList = allWords.filter(w =>
-            w.en && w.en.trim() !== '' &&
-            w.practiceScore !== undefined && w.practiceScore !== null && w.practiceScore < scoreThreshold
-          );
-        }
+      if (selectedCheckboxes.length === 0) {
+        alert('❌ No words selected!\n\nPlease select words using:\n• Checkboxes (manual selection)\n• Filter dropdown (auto-select by score)');
+        return;
       }
 
+      // Use selected words
+      const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.dataset.wordIndex));
+      practiceWordsList = selectedIndices.map(idx => allWords[idx]).filter(w => w && w.en && w.en.trim() !== '');
+
       if (practiceWordsList.length === 0) {
-        const filter = document.getElementById('practice-filter').value;
-        const filterLabel = filter === 'all' ? 'All Words' : `Score <${filter}%`;
-        alert(`❌ No words to practice!\n\n${selectedCheckboxes.length > 0 ? 'No valid words selected.' : `No words match "${filterLabel}" filter.`}\n\nTip: Select specific words using checkboxes, or choose a different filter.`);
+        alert('❌ No valid words selected!\n\nSelected words must have English text.');
         return;
       }
 
@@ -3125,20 +3112,48 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
     // Speak text using TTS
     function speakText(text, lang) {
       return new Promise((resolve) => {
-        window.speechSynthesis.cancel(); // Cancel any ongoing speech
+        // Cancel any ongoing speech and wait a bit to avoid truncation
+        window.speechSynthesis.cancel();
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang;
-        utterance.rate = 0.9;
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang;
+          utterance.rate = 0.85; // Slightly slower for better clarity
+          utterance.volume = 1.0;
+          utterance.pitch = 1.0;
 
-        // Select appropriate voice
-        const voices = window.speechSynthesis.getVoices();
-        const voice = voices.find(v => v.lang.startsWith(lang.substring(0, 2)));
-        if (voice) utterance.voice = voice;
+          // Better voice selection - prioritize quality voices
+          const voices = window.speechSynthesis.getVoices();
+          let selectedVoice = null;
 
-        utterance.onend = resolve;
-        utterance.onerror = resolve; // Resolve even on error to continue
-        window.speechSynthesis.speak(utterance);
+          if (lang.startsWith('fr')) {
+            // For French, prioritize native French voices
+            selectedVoice = voices.find(v => v.lang === 'fr-FR' && !v.name.includes('Google')) ||
+                           voices.find(v => v.lang === 'fr-FR') ||
+                           voices.find(v => v.lang.startsWith('fr-')) ||
+                           voices.find(v => v.lang.startsWith('fr'));
+          } else if (lang.startsWith('en')) {
+            // For English, prioritize US English voices
+            selectedVoice = voices.find(v => v.lang === 'en-US' && !v.name.includes('Google')) ||
+                           voices.find(v => v.lang === 'en-US') ||
+                           voices.find(v => v.lang.startsWith('en-'));
+          }
+
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log(`Using voice: ${selectedVoice.name} (${selectedVoice.lang})`);
+          }
+
+          utterance.onend = () => {
+            setTimeout(resolve, 100); // Small delay after speech ends
+          };
+          utterance.onerror = (error) => {
+            console.error('TTS error:', error);
+            setTimeout(resolve, 100); // Resolve even on error
+          };
+
+          window.speechSynthesis.speak(utterance);
+        }, 150); // Delay before speaking to avoid truncation
       });
     }
 
@@ -3396,6 +3411,37 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         selectAllCheckbox.checked = selectedCount === allCheckboxes.length;
         selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < allCheckboxes.length;
       }
+    }
+
+    // Apply filter to auto-select checkboxes
+    function applyPracticeFilter() {
+      const filter = document.getElementById('practice-filter').value;
+      const allWords = userLists[activeListName] || [];
+      const checkboxes = document.querySelectorAll('.practice-checkbox');
+
+      checkboxes.forEach((checkbox, idx) => {
+        const word = allWords[idx];
+        if (!word || !word.en || word.en.trim() === '') {
+          checkbox.checked = false;
+          return;
+        }
+
+        if (filter === 'all') {
+          checkbox.checked = true;
+        } else {
+          // Score-based filters: '95', '90', '80', '70'
+          const scoreThreshold = parseInt(filter);
+          const score = word.practiceScore;
+
+          if (score !== undefined && score !== null && score < scoreThreshold) {
+            checkbox.checked = true;
+          } else {
+            checkbox.checked = false;
+          }
+        }
+      });
+
+      updatePracticeSelection();
     }
 
     // =========================================================================
