@@ -355,9 +355,14 @@
             <i class="fa-solid fa-chart-line mr-2"></i>
             <span id="practice-mode-label">Learn Mode</span> - Progress
           </h3>
-          <button onclick="stopPractice()" class="text-xs px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg">
-            <i class="fa-solid fa-stop mr-1"></i>Stop
-          </button>
+          <div class="flex gap-2">
+            <button onclick="toggleDebugConsole()" class="text-xs px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg" title="Show/Hide Debug Log">
+              <i class="fa-solid fa-bug mr-1"></i><span class="hidden sm:inline">Debug</span>
+            </button>
+            <button onclick="stopPractice()" class="text-xs px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+              <i class="fa-solid fa-stop mr-1"></i>Stop
+            </button>
+          </div>
         </div>
 
         <!-- Progress Bar -->
@@ -3132,7 +3137,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       const logContent = document.getElementById('debug-log-content');
 
       if (debugPanel && logContent) {
-        debugPanel.classList.remove('hidden');
+        // Don't auto-show - let user toggle with Debug button
 
         const logEntry = document.createElement('div');
         logEntry.className = 'text-xs border-l-2 border-slate-700 pl-2 py-1';
@@ -3154,6 +3159,13 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       const logContent = document.getElementById('debug-log-content');
       if (logContent) {
         logContent.innerHTML = '';
+      }
+    }
+
+    function toggleDebugConsole() {
+      const debugPanel = document.getElementById('practice-debug-console');
+      if (debugPanel) {
+        debugPanel.classList.toggle('hidden');
       }
     }
 
