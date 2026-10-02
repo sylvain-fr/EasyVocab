@@ -3203,13 +3203,32 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       // Calculate score
       const score = calculateWordSimilarity(transcript, expectedWord);
 
-      // Store score
+      // Store score and transcript
       currentPracticeWord.practiceScore = score;
+      currentPracticeWord.practiceTranscript = transcript;  // Store transcript too
 
       // Update database
       savePracticeScore(currentPracticeWord, score);
 
-      // Show result
+      // Find the actual index in the full list to display transcript
+      const fullList = userLists[activeListName];
+      const actualIndex = fullList.findIndex(w => w === currentPracticeWord);
+
+      // Display recognized word in the same place as row mic button
+      if (actualIndex !== -1) {
+        const recordedDiv = document.getElementById(`recorded-${actualIndex}`);
+        const transcriptSpan = document.getElementById(`transcript-${actualIndex}`);
+        const scoreSpan = document.getElementById(`score-${actualIndex}`);
+
+        if (recordedDiv && transcriptSpan && scoreSpan) {
+          recordedDiv.classList.remove('hidden');
+          transcriptSpan.textContent = transcript;
+          scoreSpan.textContent = `${score}%`;
+          scoreSpan.className = `text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${getScoreClass(score)}`;
+        }
+      }
+
+      // Show result in stats panel
       const emoji = score >= 85 ? '✅' : score >= 55 ? '👍' : '❌';
       const message = score >= 85 ? 'Excellent!' : score >= 55 ? 'Good!' : 'Keep trying!';
       document.getElementById('practice-status-message').textContent = `${emoji} ${message} (${score}%)`;
@@ -3217,7 +3236,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       // Update stats
       updatePracticeStats();
 
-      // Re-render table to show updated score
+      // Re-render table to show updated practice score column
       renderVocabTable();
 
       // Move to next word after delay
