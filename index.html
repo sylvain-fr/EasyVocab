@@ -481,8 +481,8 @@
     <!-- ========================================================================= -->
     <section id="listening-tab" class="tab-content hidden space-y-6">
 
-      <!-- List Selection Panel -->
-      <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-lg p-4">
+      <!-- List Selection Panel (Edit Mode Only) -->
+      <div class="listening-edit-only hidden bg-slate-900 rounded-2xl border border-slate-700 shadow-lg p-4">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
           <i class="fa-solid fa-list-check mr-2"></i>Select Word Lists for Practice
         </h3>
@@ -710,6 +710,7 @@
     let listeningSpeed = 1.0;
     let showTranscription = false;
     let currentListeningText = '';
+    let userListsMetadata = {}; // Store list metadata (generated_text, etc.)
     let audioPlaying = false;
     let audioUtterance = null;
     let audioDuration = 0;
@@ -883,7 +884,7 @@
       renderListTabs()
       renderVocabTable()
       renderPrintableWorksheet()
-      generateListeningText(false) // Don't show errors on initial load
+      loadSavedGeneratedText() // Load saved text if available
       updateListCount()
 
       // Initialize show-mode-only visibility (start in read-only mode)
@@ -903,6 +904,7 @@
         .select(`
           id,
           name,
+          generated_text,
           vocabulary_items (
             id,
             en,
@@ -916,6 +918,7 @@
 
       // Convert to existing userLists format
       userLists = {}
+      userListsMetadata = {} // Store metadata like generated_text
       if (lists && lists.length > 0) {
         lists.forEach(list => {
           // Sort items by position
@@ -927,6 +930,12 @@
             sentence: item.sentence || '',
             practiceScore: item.practice_score // Load practice score
           }))
+
+          // Store metadata
+          userListsMetadata[list.name] = {
+            id: list.id,
+            generatedText: list.generated_text
+          }
         })
 
         // Set active list
@@ -1317,6 +1326,38 @@
       }
 
       renderListeningListSelector();
+
+      // Load saved generated text if available
+      loadSavedGeneratedText();
+    }
+
+    function loadSavedGeneratedText() {
+      // If only one list is selected and it has saved generated text, load it
+      if (selectedListsForListening.length === 1) {
+        const listName = selectedListsForListening[0];
+        const metadata = userListsMetadata[listName];
+
+        if (metadata && metadata.generatedText) {
+          currentListeningText = metadata.generatedText;
+
+          // Update textarea
+          const textarea = document.getElementById('listening-text-area');
+          if (textarea) {
+            textarea.value = metadata.generatedText;
+          }
+
+          // Split into sentences
+          textSentences = metadata.generatedText.match(/[^\.!?]+[\.!?]+/g) || [metadata.generatedText];
+          textSentences = textSentences.map(s => s.trim()).filter(s => s.length > 0);
+
+          // Update UI
+          renderSentencesWithRecordButtons();
+          estimateAudioDuration();
+          updateListeningWordCount();
+
+          console.log(`✅ Loaded saved generated text for "${listName}"`);
+        }
+      }
     }
 
     function updateListeningWordCount() {
@@ -2007,6 +2048,30 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
         // Update word count display
         updateListeningWordCount();
+
+        // Save generated text to database for selected lists
+        if (currentUser && selectedListsForListening.length > 0) {
+          try {
+            // Save to each selected list
+            for (const listName of selectedListsForListening) {
+              const { error: updateError } = await supabaseClient
+                .from('vocabulary_lists')
+                .update({
+                  generated_text: text,
+                  updated_at: new Date()
+                })
+                .eq('user_id', currentUser.id)
+                .eq('name', listName);
+
+              if (updateError) {
+                console.error(`Error saving generated text for list "${listName}":`, updateError);
+              }
+            }
+            console.log('✅ Generated text saved to database');
+          } catch (saveError) {
+            console.error('Error saving generated text to database:', saveError);
+          }
+        }
       } catch (error) {
         console.error('Error generating text:', error);
 
@@ -2182,8 +2247,9 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
             console.log('✅ Generated with OpenAI API');
             return generatedText;
           } else {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => null);
             console.error('OpenAI API Error:', response.status, errorData);
+            throw new Error(`OpenAI API failed (${response.status}): ${errorData?.error?.message || 'Unknown error'}`);
           }
         }
 
@@ -2191,7 +2257,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         const GEMINI_API_KEY = localStorage.getItem('gemini_api_key');
 
         if (GEMINI_API_KEY && GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY') {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2219,12 +2285,12 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
               return generatedText;
             } else {
               console.error('Unexpected Gemini response format:', data);
-              throw new Error('Invalid Gemini response');
+              throw new Error('Invalid Gemini response format');
             }
           } else {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => null);
             console.error('Gemini API Error:', response.status, errorData);
-            throw new Error(`Gemini API failed: ${response.status}`);
+            throw new Error(`Gemini API failed (${response.status}): ${errorData?.error?.message || 'Check API key and model availability'}`);
           }
         }
 
