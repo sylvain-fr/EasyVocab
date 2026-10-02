@@ -401,6 +401,19 @@
             <span class="text-red-400 font-semibold text-sm">Recording... Speak now!</span>
           </div>
         </div>
+
+        <!-- Debug Console (Mobile-Friendly) -->
+        <div id="practice-debug-console" class="hidden mt-3 bg-slate-950 rounded-lg border border-amber-600 p-3 max-h-48 overflow-y-auto">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold text-amber-400">
+              <i class="fa-solid fa-bug mr-1"></i>Debug Log
+            </h4>
+            <button onclick="clearDebugLog()" class="text-xs text-amber-400 hover:text-amber-300">Clear</button>
+          </div>
+          <div id="debug-log-content" class="text-xs font-mono text-slate-300 space-y-1">
+            <!-- Debug messages appear here -->
+          </div>
+        </div>
       </div>
 
       <!-- Word Management Table (Full Width) -->
@@ -3100,6 +3113,48 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       startPractice('test');
     }
 
+    // Debug logging helper (shows on screen AND in console)
+    function debugLog(emoji, message, data = null) {
+      const timestamp = new Date().toLocaleTimeString();
+      const fullMessage = `${emoji} ${message}`;
+
+      // Log to console
+      if (data) {
+        console.log(fullMessage, data);
+      } else {
+        console.log(fullMessage);
+      }
+
+      // Log to on-screen debug panel
+      const debugPanel = document.getElementById('practice-debug-console');
+      const logContent = document.getElementById('debug-log-content');
+
+      if (debugPanel && logContent) {
+        debugPanel.classList.remove('hidden');
+
+        const logEntry = document.createElement('div');
+        logEntry.className = 'text-xs border-l-2 border-slate-700 pl-2 py-1';
+        logEntry.innerHTML = `<span class="text-slate-500">${timestamp}</span> ${fullMessage}${data ? ' <span class="text-amber-300">' + JSON.stringify(data) + '</span>' : ''}`;
+
+        logContent.appendChild(logEntry);
+
+        // Auto-scroll to bottom
+        logContent.scrollTop = logContent.scrollHeight;
+
+        // Keep only last 20 messages
+        while (logContent.children.length > 20) {
+          logContent.removeChild(logContent.firstChild);
+        }
+      }
+    }
+
+    function clearDebugLog() {
+      const logContent = document.getElementById('debug-log-content');
+      if (logContent) {
+        logContent.innerHTML = '';
+      }
+    }
+
     // Initialize practice session
     function startPractice(mode) {
       practiceMode = mode;
@@ -3197,14 +3252,14 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         const source = audioContext.createMediaStreamSource(micStream);
         source.connect(micAnalyser);
 
-        console.log('✅ Voice Activity Detection initialized');
+        debugLog('✅', 'VAD initialized');
 
         // Start continuous recognition
         try {
           practiceRecognition.start();
-          console.log('✅ Continuous speech recognition started');
+          debugLog('✅', 'Recognition started');
         } catch (e) {
-          console.error('❌ Failed to start recognition:', e);
+          debugLog('❌', 'Start failed: ' + e.message);
         }
 
         // Start VAD monitoring
@@ -3267,15 +3322,14 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
     // Handle continuous recognition results
     function handleContinuousRecognition(event) {
-      console.log('🎤 Recognition event:', {
-        isWaitingForResponse,
-        resultsLength: event.results.length,
-        isPracticing
+      debugLog('🎤', 'Recognition event', {
+        waiting: isWaitingForResponse,
+        results: event.results.length
       });
 
       if (!isWaitingForResponse) {
         // Ignore recognition when not waiting for answer
-        console.log('⏭️ Not waiting for response, ignoring...');
+        debugLog('⏭️', 'Not waiting, ignoring');
         return;
       }
 
@@ -3285,7 +3339,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       if (result.isFinal) {
         // Final result - process the answer
         const transcript = result[0].transcript.toLowerCase().trim();
-        console.log('✅ Final transcript:', transcript);
+        debugLog('✅', 'Final: ' + transcript);
 
         // Clear silence timeout since user spoke
         if (silenceTimeout) {
@@ -3298,21 +3352,20 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       } else {
         // Interim result - show partial transcription
         const transcript = result[0].transcript;
-        console.log('📝 Interim:', transcript);
+        debugLog('📝', 'Interim: ' + transcript);
         document.getElementById('practice-status-message').textContent = `🎤 "${transcript}"...`;
       }
     }
 
     // Process user's answer
     function processUserAnswer(transcript) {
-      console.log('🎯 processUserAnswer called:', {
-        transcript,
-        currentPracticeWord: currentPracticeWord?.en,
-        isWaitingForResponse
+      debugLog('🎯', 'Processing answer', {
+        got: transcript,
+        expected: currentPracticeWord?.en
       });
 
       if (!currentPracticeWord || !isWaitingForResponse) {
-        console.log('⏭️ Skipping - not ready to process');
+        debugLog('⏭️', 'Not ready to process');
         return;
       }
 
@@ -3324,7 +3377,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
       // Calculate score
       const score = calculateWordSimilarity(transcript, expectedWord);
-      console.log('📊 Score:', score, `(expected: "${expectedWord}", got: "${transcript}")`);
+      debugLog('📊', `Score: ${score}%`);
 
       // Store score and transcript
       currentPracticeWord.practiceScore = score;
@@ -3421,7 +3474,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       isWaitingForResponse = true;
       userHasSpoken = false;
 
-      console.log('🎯 Now waiting for response. Expected word:', currentPracticeWord?.en);
+      debugLog('🎯', 'Waiting for: ' + currentPracticeWord?.en);
       document.getElementById('practice-status-message').textContent = '🎤 Your turn! Say the English word...';
 
       // Set timeout for silence (if user doesn't speak within 10 seconds, move on)
