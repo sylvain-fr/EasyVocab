@@ -3200,7 +3200,12 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         console.log('✅ Voice Activity Detection initialized');
 
         // Start continuous recognition
-        practiceRecognition.start();
+        try {
+          practiceRecognition.start();
+          console.log('✅ Continuous speech recognition started');
+        } catch (e) {
+          console.error('❌ Failed to start recognition:', e);
+        }
 
         // Start VAD monitoring
         startVADMonitoring();
@@ -3262,8 +3267,15 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
     // Handle continuous recognition results
     function handleContinuousRecognition(event) {
+      console.log('🎤 Recognition event:', {
+        isWaitingForResponse,
+        resultsLength: event.results.length,
+        isPracticing
+      });
+
       if (!isWaitingForResponse) {
         // Ignore recognition when not waiting for answer
+        console.log('⏭️ Not waiting for response, ignoring...');
         return;
       }
 
@@ -3273,7 +3285,13 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       if (result.isFinal) {
         // Final result - process the answer
         const transcript = result[0].transcript.toLowerCase().trim();
-        console.log('📝 Final transcript:', transcript);
+        console.log('✅ Final transcript:', transcript);
+
+        // Clear silence timeout since user spoke
+        if (silenceTimeout) {
+          clearTimeout(silenceTimeout);
+          silenceTimeout = null;
+        }
 
         // Process the user's answer
         processUserAnswer(transcript);
@@ -3287,7 +3305,16 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
     // Process user's answer
     function processUserAnswer(transcript) {
-      if (!currentPracticeWord || !isWaitingForResponse) return;
+      console.log('🎯 processUserAnswer called:', {
+        transcript,
+        currentPracticeWord: currentPracticeWord?.en,
+        isWaitingForResponse
+      });
+
+      if (!currentPracticeWord || !isWaitingForResponse) {
+        console.log('⏭️ Skipping - not ready to process');
+        return;
+      }
 
       isWaitingForResponse = false;
       userHasSpoken = false;
@@ -3297,6 +3324,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
 
       // Calculate score
       const score = calculateWordSimilarity(transcript, expectedWord);
+      console.log('📊 Score:', score, `(expected: "${expectedWord}", got: "${transcript}")`);
 
       // Store score and transcript
       currentPracticeWord.practiceScore = score;
@@ -3393,6 +3421,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       isWaitingForResponse = true;
       userHasSpoken = false;
 
+      console.log('🎯 Now waiting for response. Expected word:', currentPracticeWord?.en);
       document.getElementById('practice-status-message').textContent = '🎤 Your turn! Say the English word...';
 
       // Set timeout for silence (if user doesn't speak within 10 seconds, move on)
