@@ -3102,6 +3102,8 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
     let isWaitingForResponse = false;
     let silenceTimeout = null;
     let userHasSpoken = false;
+    let lastInterimTranscript = '';
+    let interimTimeout = null;
 
     // Start Learn Mode
     function startLearnMode() {
@@ -3280,6 +3282,12 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         const transcript = result[0].transcript.toLowerCase().trim();
         debugLog('✅', 'Final: ' + transcript);
 
+        // Clear interim timeout if any
+        if (interimTimeout) {
+          clearTimeout(interimTimeout);
+          interimTimeout = null;
+        }
+
         // Hide recording indicator
         document.getElementById('practice-recording-indicator').classList.add('hidden');
 
@@ -3296,6 +3304,9 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         const transcript = result[0].transcript;
         debugLog('📝', 'Interim: ' + transcript);
 
+        // Store last interim transcript
+        lastInterimTranscript = transcript.toLowerCase().trim();
+
         // Show recording indicator when user starts speaking
         if (!userHasSpoken) {
           userHasSpoken = true;
@@ -3303,6 +3314,19 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         }
 
         document.getElementById('practice-status-message').textContent = `🎤 "${transcript}"...`;
+
+        // Auto-finalize after 1.5 seconds of no new interim results
+        // This handles cases where isFinal never fires (common on mobile)
+        if (interimTimeout) {
+          clearTimeout(interimTimeout);
+        }
+        interimTimeout = setTimeout(() => {
+          if (lastInterimTranscript && isWaitingForResponse) {
+            debugLog('⏱️', 'Auto-finalize: ' + lastInterimTranscript);
+            document.getElementById('practice-recording-indicator').classList.add('hidden');
+            processUserAnswer(lastInterimTranscript);
+          }
+        }, 1500); // 1.5 seconds
       }
     }
 
@@ -3633,6 +3657,10 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       if (silenceTimeout) {
         clearTimeout(silenceTimeout);
         silenceTimeout = null;
+      }
+      if (interimTimeout) {
+        clearTimeout(interimTimeout);
+        interimTimeout = null;
       }
 
       // Stop VAD monitoring
