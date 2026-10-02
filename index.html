@@ -899,7 +899,8 @@
 
     async function loadUserLists() {
       // Fetch all lists with their items
-      const { data: lists } = await supabaseClient
+      // Note: generated_text is optional (requires migration)
+      let { data: lists, error: listsError } = await supabaseClient
         .from('vocabulary_lists')
         .select(`
           id,
@@ -915,6 +916,28 @@
           )
         `)
         .order('name')
+
+      // If error mentions generated_text column doesn't exist, retry without it
+      if (listsError && listsError.message && listsError.message.includes('generated_text')) {
+        console.warn('⚠️ generated_text column not found. Run migration: add-generated-text-migration.sql');
+        const response = await supabaseClient
+          .from('vocabulary_lists')
+          .select(`
+            id,
+            name,
+            vocabulary_items (
+              id,
+              en,
+              fr,
+              sentence,
+              position,
+              practice_score
+            )
+          `)
+          .order('name')
+
+        lists = response.data;
+      }
 
       // Convert to existing userLists format
       userLists = {}
@@ -2049,7 +2072,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
         // Update word count display
         updateListeningWordCount();
 
-        // Save generated text to database for selected lists
+        // Save generated text to database for selected lists (if migration was run)
         if (currentUser && selectedListsForListening.length > 0) {
           try {
             // Save to each selected list
@@ -2064,7 +2087,13 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
                 .eq('name', listName);
 
               if (updateError) {
-                console.error(`Error saving generated text for list "${listName}":`, updateError);
+                // Silently fail if column doesn't exist (migration not run yet)
+                if (updateError.message && updateError.message.includes('generated_text')) {
+                  console.warn('⚠️ Cannot save generated text: run add-generated-text-migration.sql');
+                  break; // Don't try other lists
+                } else {
+                  console.error(`Error saving generated text for list "${listName}":`, updateError);
+                }
               }
             }
             console.log('✅ Generated text saved to database');
