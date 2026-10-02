@@ -3019,6 +3019,8 @@ Write the story now (${guide.length}).`;
 
     let isPaused = false;
     let heardWhileSpeaking = false;  // Mic picked up audio before the user's turn (app voice echo)
+    let previousSessionEnded = Promise.resolve();  // Resolves when the last aborted recognition session has ended
+    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     let practiceRunId = 0;           // Incremented on pause/stop so in-flight steps of the word sequence bail out
     let practiceNextTimeout = null;  // Pending "move to next word" timer
 
@@ -3247,17 +3249,31 @@ Write the story now (${guide.length}).`;
       return rec;
     }
 
-    // Start listening while the last prompt is still being spoken, so the mic is ready when it ends.
-    // If the mic hears the app's own voice, startWaitingForResponse discards this session.
-    function startPreListening() {
+    // Start a new recognition session, but only once the previous one has fully released the mic.
+    // On mobile (Android), starting while the old session is still closing gives a session that hears nothing.
+    function startPracticeSession() {
       stopPracticeListening();
       heardWhileSpeaking = false;
-      practiceRecognition = createPracticeRecognition();
-      try {
-        practiceRecognition.start();
-      } catch (e) {
-        debugLog('❌', 'Pre-listen start failed: ' + e.message);
-      }
+      const runId = practiceRunId;
+      const rec = createPracticeRecognition();
+      practiceRecognition = rec; // Reserve the slot now so callers know a session is coming
+      previousSessionEnded.then(() => {
+        if (runId !== practiceRunId || practiceRecognition !== rec) return; // Paused/stopped/replaced meanwhile
+        rec.started = true;
+        try {
+          rec.start();
+        } catch (e) {
+          debugLog('❌', 'Start failed: ' + e.message);
+        }
+      });
+    }
+
+    // Start listening while the last prompt is still being spoken, so the mic is ready when it ends.
+    // If the mic hears the app's own voice, startWaitingForResponse discards this session.
+    // Desktop only: on phones the speaker always reaches the mic, and the mic can cut off the voice.
+    function startPreListening() {
+      if (isMobileDevice) return;
+      startPracticeSession();
     }
 
     // Handle continuous recognition results
@@ -3281,6 +3297,12 @@ Write the story now (${guide.length}).`;
         // Final result - process the answer
         const transcript = result[0].transcript.toLowerCase().trim();
         debugLog('✅', 'Final: ' + transcript);
+
+        // Mobile recognizers sometimes report an empty final result: keep listening instead of scoring it
+        if (!transcript) {
+          debugLog('⚠️', 'Empty result - still listening');
+          return;
+        }
 
         // Clear interim timeout if any
         if (interimTimeout) {
@@ -3455,7 +3477,17 @@ Write the story now (${guide.length}).`;
         const old = practiceRecognition;
         practiceRecognition = null;
         // Detach handlers so late events from the old session are ignored
-        old.onstart = old.onresult = old.onerror = old.onend = null;
+        old.onstart = old.onresult = old.onerror = null;
+        if (!old.started || old.ended) {
+          old.onend = null;
+          previousSessionEnded = Promise.resolve();
+        } else {
+          // Next session waits for this one to end (fallback in case onend never fires)
+          previousSessionEnded = new Promise(resolve => {
+            old.onend = resolve;
+            setTimeout(resolve, 1000);
+          });
+        }
         try {
           old.abort();
         } catch (e) {
@@ -3473,13 +3505,7 @@ Write the story now (${guide.length}).`;
       // "Not clean" = it heard the app's voice, or it already ended.
       if (!practiceRecognition || heardWhileSpeaking || practiceRecognition.ended) {
         if (heardWhileSpeaking) debugLog('🔁', 'Mic heard the app voice - restarting');
-        stopPracticeListening();
-        practiceRecognition = createPracticeRecognition();
-        try {
-          practiceRecognition.start();
-        } catch (e) {
-          debugLog('❌', 'Start failed: ' + e.message);
-        }
+        startPracticeSession();
       }
       isWaitingForResponse = true;
 
