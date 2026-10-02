@@ -416,7 +416,6 @@
                 </th>
                 <th class="py-3 px-3">English Word</th>
                 <th class="py-3 px-3">French Translation</th>
-                <th class="py-3 px-3">Context Sentence</th>
                 <th class="py-3 px-3 w-10 text-center">Audio</th>
                 <th class="py-3 px-3 w-24 text-center">Practice Score</th>
                 <th class="py-3 px-3 w-10 text-center" id="header-show-del">
@@ -1506,28 +1505,6 @@
                 class="vocab-input bg-transparent ${frUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full font-semibold text-slate-100 ${readonlyClass}">
               ${isEditMode && item.fr ? `
                 <button onclick="event.stopPropagation(); clearField(${idx}, 'fr')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              ` : ''}
-            </div>
-          </td>
-          <!-- Context Sentence Input (with hide/show) -->
-          <td class="py-2.5 px-3 transition-opacity duration-300">
-            <div class="flex items-center gap-1 ${hiddenClass}">
-              <input type="text"
-                value="${escapeHtml(item.sentence || '')}"
-                data-row="${idx}"
-                data-col="2"
-                spellcheck="true"
-                lang="en"
-                placeholder="${isEditMode ? 'Short sentence...' : ''}"
-                onchange="updateWordItem(${idx}, 'sentence', this.value)"
-                onkeydown="handleKeyNavigation(event, ${idx}, 2)"
-                onclick="event.stopPropagation()"
-                ${readonly}
-                class="vocab-input bg-transparent ${sentenceUnderline} focus:border-brand-400 focus:bg-slate-800 focus:outline-none w-full text-slate-400 italic text-[11px] ${readonlyClass}">
-              ${isEditMode && item.sentence ? `
-                <button onclick="event.stopPropagation(); clearField(${idx}, 'sentence')" class="text-slate-500 hover:text-red-400 text-xs px-1" title="Clear">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
               ` : ''}
