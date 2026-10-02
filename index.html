@@ -3302,10 +3302,16 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
       } else {
         // Interim result - show partial transcription and recording indicator
         const transcript = result[0].transcript;
-        debugLog('📝', 'Interim: ' + transcript);
+        const cleaned = transcript.toLowerCase().trim();
+
+        debugLog('📝', 'Interim', {
+          raw: transcript,
+          cleaned: cleaned,
+          length: cleaned.length
+        });
 
         // Store last interim transcript
-        lastInterimTranscript = transcript.toLowerCase().trim();
+        lastInterimTranscript = cleaned;
 
         // Show recording indicator when user starts speaking
         if (!userHasSpoken) {
@@ -3321,10 +3327,25 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
           clearTimeout(interimTimeout);
         }
         interimTimeout = setTimeout(() => {
-          if (lastInterimTranscript && isWaitingForResponse) {
+          debugLog('⏰', 'Timeout fired', {
+            hasTranscript: !!lastInterimTranscript,
+            transcript: lastInterimTranscript,
+            waiting: isWaitingForResponse
+          });
+
+          if (lastInterimTranscript && lastInterimTranscript.length > 0 && isWaitingForResponse) {
             debugLog('⏱️', 'Auto-finalize: ' + lastInterimTranscript);
             document.getElementById('practice-recording-indicator').classList.add('hidden');
             processUserAnswer(lastInterimTranscript);
+          } else if (isWaitingForResponse) {
+            // No valid transcript after 1.5 seconds - skip this word
+            debugLog('⚠️', 'No speech detected');
+            document.getElementById('practice-status-message').textContent = '⚠️ No speech detected - skipping...';
+            document.getElementById('practice-recording-indicator').classList.add('hidden');
+            setTimeout(() => {
+              practiceIndex++;
+              practiceNextWord();
+            }, 1500);
           }
         }, 1500); // 1.5 seconds
       }
@@ -3446,6 +3467,7 @@ Write a natural, engaging ${guide.length} story at ${difficulty} level. Pick mos
     function startWaitingForResponse() {
       isWaitingForResponse = true;
       userHasSpoken = false;
+      lastInterimTranscript = ''; // Reset for new word
 
       debugLog('🎯', 'Waiting for: ' + currentPracticeWord?.en);
       document.getElementById('practice-status-message').textContent = '🎤 Your turn! Say the English word...';
