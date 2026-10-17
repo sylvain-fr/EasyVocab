@@ -1528,7 +1528,7 @@
 
         tr.innerHTML = `
           <!-- Checkbox for practice selection (show mode only) -->
-          <td class="py-2.5 px-3 text-center show-mode-only">
+          <td class="py-2.5 px-3 text-center show-mode-only ${isEditMode ? 'hidden' : ''}">
             <input type="checkbox"
               class="practice-checkbox cursor-pointer"
               data-word-index="${idx}"
