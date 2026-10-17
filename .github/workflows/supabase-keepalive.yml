@@ -1,0 +1,23 @@
+# Pings Supabase regularly so the free-tier project is not paused for inactivity
+# (Supabase pauses free projects after 7 days without activity).
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '0 6 * * 1,4' # Mondays and Thursdays at 06:00 UTC
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Supabase database
+        env:
+          # Public anon key, same as in index.html
+          SUPABASE_URL: https://ewhwuuorvitqjrldwtzz.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3aHd1dW9ydml0cWpybGR3dHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNjY0NjcsImV4cCI6MjEwNTc0MjQ2N30.xySzyvg7qLQPD9Ys_tiDi3hE50Yfr19BSao3ItlZMew
+        run: |
+          curl --fail-with-body -sS \
+            "$SUPABASE_URL/rest/v1/vocabulary_lists?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
